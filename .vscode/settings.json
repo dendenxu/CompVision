@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "*.asm": "masm",
+        "*.vf": "verilog",
+        "*.v": "systemverilog",
+        "array": "cpp",
+        "iterator": "cpp",
+        "vector": "cpp",
+        "istream": "cpp",
+        "tuple": "cpp",
+        "xutility": "cpp",
+        "unordered_map": "cpp",
+        "xstring": "cpp"
+    }
+}
