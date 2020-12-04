@@ -37,6 +37,10 @@ void VideoCompareHelpMessage();
 double getPSNR(const Mat& I1, const Mat& I2);
 Scalar getMSSIM(const Mat& I1, const Mat& I2);
 
+int imageFilter(int argc, char* argv[]);
+void sharpen(const Mat& img, Mat& result);
+static void imageFilterHelp(char* progName);
+
 void VideoIOHelpMessage()
 {
     cout
@@ -64,11 +68,78 @@ void VideoCompareHelpMessage()
 
 int main(int argc, char* argv[])
 {
+    return imageFilter(argc, argv);
     //return VideoIO(argc, argv);
-    return VideoCompare(argc, argv);
+    //return VideoCompare(argc, argv);
     //DrawCircles();
     //DrawAtomAndRook();
     // waitKey(0);
+}
+
+static void imageFilterHelp(char* progName)
+{
+    cout << endl
+        << "This program shows how to filter images with mask: the write it yourself and the"
+        << "filter2d way. " << endl
+        << "Usage:" << endl
+        << progName << " [image_path -- default lena.jpg] [G -- grayscale] " << endl
+        << endl;
+}
+
+int imageFilter(int argc, char* argv[])
+{
+    const char* filename = (argc >= 2) ? argv[1] : "lena.png";
+    Mat src, dst0, dst1;
+    if (argc >= 3 && !strcmp("G", argv[2]))
+        src = imread(samples::findFile(filename), IMREAD_GRAYSCALE);
+    else
+        src = imread(samples::findFile(filename), IMREAD_COLOR);
+    if (src.empty()) {
+        cerr << "Can't open image [" << filename << "]" << endl;
+        return EXIT_FAILURE;
+    }
+    namedWindow("Input", WINDOW_AUTOSIZE);
+    namedWindow("Output", WINDOW_AUTOSIZE);
+    imshow("Input", src);
+    double t = (double)getTickCount();
+    sharpen(src, dst0);
+    t = ((double)getTickCount() - t) / getTickFrequency();
+    cout << "Hand written function time passed in seconds: " << t << endl;
+    imshow("Output", dst0);
+    waitKey();
+    Mat kernel = (Mat_<char>(3, 3) << 0, -1, 0,
+        -1, 5, -1,
+        0, -1, 0);
+    t = (double)getTickCount();
+    filter2D(src, dst1, src.depth(), kernel);
+    t = ((double)getTickCount() - t) / getTickFrequency();
+    cout << "Built-in filter2D time passed in seconds:     " << t << endl;
+    imshow("Output", dst1);
+    waitKey();
+    return EXIT_SUCCESS;
+}
+
+void sharpen(const Mat& img, Mat& result)
+{
+    CV_Assert(img.depth() == CV_8U);  // accept only uchar images
+    const int nChannels = img.channels();
+    result.create(img.size(), img.type());
+    for (int j = 1; j < img.rows - 1; ++j) {
+        const uchar* previous = img.ptr<uchar>(j - 1);
+        const uchar* current = img.ptr<uchar>(j);
+        const uchar* next = img.ptr<uchar>(j + 1);
+        uchar* output = result.ptr<uchar>(j);
+        for (int i = nChannels; i < nChannels * (img.cols - 1); ++i) {
+            *output++ =
+                // ! Using saturate_cast to clip to bounds
+                saturate_cast<uchar>
+                (5 * current[i] - current[i - nChannels] - current[i + nChannels] - previous[i] - next[i]);
+        }
+    }
+    result.row(0).setTo(Scalar(0));
+    result.row(result.rows - 1).setTo(Scalar(0));
+    result.col(0).setTo(Scalar(0));
+    result.col(result.cols - 1).setTo(Scalar(0));
 }
 
 int VideoCompare(int argc, char* argv[])
@@ -169,7 +240,6 @@ int VideoCompare(int argc, char* argv[])
         imshow(WINDOW_REFERENCE, frameReference);
         imshow(WINDOW_UNDERTEST, frameReference);
 
-
         auto end = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds = end - start;
         //! not using delay here
@@ -177,7 +247,6 @@ int VideoCompare(int argc, char* argv[])
 
         OUTPUTINFO
             << "TimeToWait: " << timeToWait << "ms";
-
 
         cout << endl;
         if (timeToWait > 0) {
@@ -280,32 +349,35 @@ int VideoIO(int argc, char* argv[])
         return -1;
     }
 
-    string::size_type pAt = source.find_last_of('.');                  // Find extension point
-    const string NAME = source.substr(0, pAt) + argv[2][0] + ".avi";   // Form the new name with container
-    int ex = static_cast<int>(inputVideo.get(CAP_PROP_FOURCC));     // Get Codec Type- Int form
+    string::size_type pAt = source.find_last_of('.');                 // Find extension point
+    const string NAME = source.substr(0, pAt) + argv[2][0] + ".avi";  // Form the new name with container
+    int ex = static_cast<int>(inputVideo.get(CAP_PROP_FOURCC));       // Get Codec Type- Int form
     // Transform from int to char via Bitwise operators
-    char EXT[] = { (char)(ex & 0XFF) , (char)((ex & 0XFF00) >> 8),(char)((ex & 0XFF0000) >> 16),(char)((ex & 0XFF000000) >> 24), 0 };
+    char EXT[] = { (char)(ex & 0XFF), (char)((ex & 0XFF00) >> 8), (char)((ex & 0XFF0000) >> 16), (char)((ex & 0XFF000000) >> 24), 0 };
 
-    Size S = Size((int)inputVideo.get(CAP_PROP_FRAME_WIDTH),    // Acquire input size
+    Size S = Size((int)inputVideo.get(CAP_PROP_FRAME_WIDTH),  // Acquire input size
         (int)inputVideo.get(CAP_PROP_FRAME_HEIGHT));
 
-    VideoWriter outputVideo;                                        // Open the output
+    VideoWriter outputVideo;  // Open the output
 
-    if (askOutputType)
-        outputVideo.open(NAME, ex = -1, inputVideo.get(CAP_PROP_FPS), S, true);
-    else
-        outputVideo.open(NAME, ex, inputVideo.get(CAP_PROP_FPS), S, true);
+    //if (askOutputType)
+    //outputVideo.open(NAME, ex = -1, inputVideo.get(CAP_PROP_FPS), S, true);
+    //else
+
+    // ! Not using askOutputType bool here
+    // BUG: Normally, a windows named Video Compression should be opended for the user to select the CODEC
+    // if we pass ex = -1 in this case, but on my machine, it's not opening up correctly.
+    outputVideo.open(NAME, ex, inputVideo.get(CAP_PROP_FPS), S, true);
 
     if (!outputVideo.isOpened()) {
-        OUTPUTERROR << "Could not open the output video for write: " << source << endl;
+        OUTPUTERROR << "Could not open the output video for write: " << NAME << endl;
         return -1;
     }
-
 
     OUTPUTINFO << "Input frame resolution: Width=" << S.width << "  Height=" << S.height
         << " of nr#: " << inputVideo.get(CAP_PROP_FRAME_COUNT) << endl;
     OUTPUTINFO << "Input codec type: " << EXT << endl;
-    int channel = 2; // Select the channel to save
+    int channel = 2;  // Select the channel to save
     switch (argv[2][0]) {
     case 'R': channel = 2; break;
     case 'G': channel = 1; break;
@@ -313,11 +385,11 @@ int VideoIO(int argc, char* argv[])
     }
     Mat src, res;
     vector<Mat> spl;
-    while (1) {//Show the image captured in the window and repeat
+    while (1) {  //Show the image captured in the window and repeat
 
-        inputVideo >> src;              // read
-        if (src.empty()) break;         // check if at end
-        split(src, spl);                // process - extract only the correct channel
+        inputVideo >> src;       // read
+        if (src.empty()) break;  // check if at end
+        split(src, spl);         // process - extract only the correct channel
         for (int i = 0; i < 3; ++i)
             if (i != channel)
                 spl[i] = Mat::zeros(S, spl[0].type());
