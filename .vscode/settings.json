@@ -10,6 +10,7 @@
         "tuple": "cpp",
         "xutility": "cpp",
         "unordered_map": "cpp",
-        "xstring": "cpp"
+        "xstring": "cpp",
+        "iomanip": "cpp"
     }
 }

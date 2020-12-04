@@ -20,7 +20,7 @@ using namespace cv;
 using namespace std;
 
 Scalar HexString2ColorScalar(string str);
-Scalar Hex2ColorScalar(unsigned long color, bool hasAlpha = false);
+Scalar Hex2ColorScalar(uint color, bool hasAlpha = false);
 void MyEllipse(Mat img, double angle, int width = AtomAndRookWidth);
 void MyFilledCircle(Mat img, Point center, int width = AtomAndRookWidth / 32);
 void MyLine(Mat img, Point start, Point end);
@@ -43,6 +43,28 @@ static void imageFilterHelp(char* progName);
 
 int imageShow(int argc, char* argv[]);
 
+static Scalar randomColor(RNG& rng);
+int drawRandomLines(Mat image, const string window_name, RNG rng);
+int drawRandomRectangles(Mat image, const string window_name, RNG rng);
+int drawRandomEllipses(Mat image, const string window_name, RNG rng);
+int drawRandomPolylines(Mat image, const string window_name, RNG rng);
+int drawRandomFilledPolygons(Mat image, const string window_name, RNG rng);
+int drawRandomCircles(Mat image, const string window_name, RNG rng);
+int displayRandomText(Mat image, const string window_name, RNG rng);
+int displayBigEnd(Mat image, const string window_name, RNG rng);
+int imageRandom(int argc, char* argv[]);
+
+int main(int argc, char* argv[])
+{
+    return imageRandom(argc, argv);
+    //return imageShow(argc, argv);
+    //return imageFilter(argc, argv);
+    // return VideoIO(argc, argv);
+    // return VideoCompare(argc, argv);
+    // DrawCircles();
+    // DrawAtomAndRook();
+    // waitKey(0);
+}
 
 void VideoIOHelpMessage()
 {
@@ -69,15 +91,191 @@ void VideoCompareHelpMessage()
         << endl;
 }
 
-int main(int argc, char* argv[])
+constexpr auto NUMBER = 100;
+constexpr auto DELAY = 5;
+constexpr auto WINDOW_WIDTH = 900;
+constexpr auto WINDOW_HEIGHT = 600;
+constexpr auto WIN_W_MIN = -WINDOW_WIDTH / 2;
+constexpr auto WIN_W_MAX = 3 * WINDOW_WIDTH / 2;
+constexpr auto WIN_H_MIN = -WINDOW_HEIGHT / 2;
+constexpr auto WIN_H_MAX = 3 * WINDOW_HEIGHT / 2;
+
+int imageRandom(int argc, char* argv[])
 {
-    return imageShow(argc, argv);
-    //return imageFilter(argc, argv);
-    // return VideoIO(argc, argv);
-    // return VideoCompare(argc, argv);
-    // DrawCircles();
-    // DrawAtomAndRook();
-    // waitKey(0);
+    const string WIN_RANDOM = "Drawing Random Stuff";
+
+    RNG rng(0xffffffff);
+    Mat image = Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3);
+    imshow(WIN_RANDOM, image);
+    waitKey(DELAY);
+
+    drawRandomLines(image, WIN_RANDOM, rng);
+    drawRandomRectangles(image, WIN_RANDOM, rng);
+    drawRandomEllipses(image, WIN_RANDOM, rng);
+    drawRandomPolylines(image, WIN_RANDOM, rng);
+    drawRandomFilledPolygons(image, WIN_RANDOM, rng);
+    drawRandomCircles(image, WIN_RANDOM, rng);
+    displayRandomText(image, WIN_RANDOM, rng);
+    displayBigEnd(image, WIN_RANDOM, rng);
+
+    waitKey();
+    return 0;
+}
+
+Scalar randomColor(RNG& rng)
+{
+    uint color = (uint)rng;
+    OUTPUTINFO << "Getting random number: 0x" << hex << setfill('0') << setw(6) << color << endl;
+    return Scalar(color & 0xff, (color >> 8) & 0xff, (color >> 16) & 0xff);
+}
+
+int drawRandomLines(Mat image, const string window_name, RNG rng)
+{
+    Point pt1, pt2;
+
+    for (int i = 0; i < NUMBER; i++) {
+        pt1.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt1.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt2.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt2.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+
+        line(image, pt1, pt2, randomColor(rng), rng.uniform(1, 10), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int drawRandomRectangles(Mat image, const string window_name, RNG rng)
+{
+    Point pt1, pt2;
+
+    for (int i = 0; i < NUMBER; i++) {
+        pt1.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt1.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt2.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt2.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+
+        rectangle(image, pt1, pt2, randomColor(rng), MAX(rng.uniform(-3, 10), -1), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+constexpr auto ELLI_AXES_MIN = 0;
+constexpr auto ELLI_AXES_MAX = 200;
+constexpr auto ELLI_ANGLE_MIN = 0;
+constexpr auto ELLI_ANGLE_MAX = 180;
+
+int drawRandomEllipses(Mat image, const string window_name, RNG rng)
+{
+    Point center;
+    Size axes;
+    double angle;
+    for (int i = 0; i < NUMBER; i++) {
+        center.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        center.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        axes.width = rng.uniform(ELLI_AXES_MIN, ELLI_AXES_MAX);
+        axes.height = rng.uniform(ELLI_AXES_MIN, ELLI_AXES_MAX);
+        angle = rng.uniform(ELLI_ANGLE_MIN, ELLI_ANGLE_MAX);
+
+        ellipse(image, center, axes, angle, angle - 100, angle + 200, randomColor(rng), rng.uniform(-1, 9), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+    return 0;
+}
+
+int drawRandomPolylines(Mat image, const string window_name, RNG rng)
+{
+    Point pt[2][3];
+    const Point* ppt[2] = {pt[0], pt[1]};
+    int npt[] = {3, 3};
+    for (int i = 0; i < NUMBER; i++) {
+        pt[0][0].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][0].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[0][1].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][1].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[0][2].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][2].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][0].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][0].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][1].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][1].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][2].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][2].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        polylines(image, ppt, npt, 2, true, randomColor(rng), rng.uniform(1, 10), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+    return 0;
+}
+int drawRandomFilledPolygons(Mat image, const string window_name, RNG rng)
+{
+    Point pt[2][3];
+    const Point* ppt[2] = {pt[0], pt[1]};
+    int npt[] = {3, 3};
+    for (int i = 0; i < NUMBER; i++) {
+        pt[0][0].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][0].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[0][1].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][1].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[0][2].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[0][2].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][0].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][0].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][1].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][1].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        pt[1][2].x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        pt[1][2].y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        fillPoly(image, ppt, npt, 2, randomColor(rng), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+    return 0;
+}
+int drawRandomCircles(Mat image, const string window_name, RNG rng)
+{
+    for (int i = 0; i < NUMBER; i++) {
+        Point center;
+        center.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        center.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+        circle(image, center, rng.uniform(0, 300), randomColor(rng), rng.uniform(-1, 9), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            return -1;
+        }
+    }
+    return 0;
+}
+
+// TODO: Implement this
+int displayRandomText(Mat image, const string window_name, RNG rng)
+{
+    return 0;
+}
+// TODO: Implement this
+int displayBigEnd(Mat image, const string window_name, RNG rng)
+{
+    return 0;
 }
 
 int imageShow(int argc, char* argv[])
@@ -115,11 +313,11 @@ int imageShow(int argc, char* argv[])
 void imageFilterHelp(char* progName)
 {
     cout << endl
-        << "This program shows how to filter images with mask: the write it yourself and the"
-        << "filter2d way. " << endl
-        << "Usage:" << endl
-        << progName << " [image_path -- default lena.jpg] [G -- grayscale] " << endl
-        << endl;
+         << "This program shows how to filter images with mask: the write it yourself and the"
+         << "filter2d way. " << endl
+         << "Usage:" << endl
+         << progName << " [image_path -- default lena.jpg] [G -- grayscale] " << endl
+         << endl;
 }
 
 int imageFilter(int argc, char* argv[])
@@ -144,8 +342,8 @@ int imageFilter(int argc, char* argv[])
     imshow("Output", dst0);
     waitKey();
     Mat kernel = (Mat_<char>(3, 3) << 0, -1, 0,
-        -1, 5, -1,
-        0, -1, 0);
+                  -1, 5, -1,
+                  0, -1, 0);
     t = (double)getTickCount();
     filter2D(src, dst1, src.depth(), kernel);
     t = ((double)getTickCount() - t) / getTickFrequency();
@@ -190,7 +388,7 @@ int VideoCompare(int argc, char* argv[])
     const string sourceReference = argv[1], sourceCompareWith = argv[2];
     int psnrTriggerValue, delay;
     conversion << argv[3] << endl
-        << argv[4];  // put in the strings
+               << argv[4];  // put in the strings
 
     conversion >> psnrTriggerValue >> delay;  // take out the numbers
 
@@ -265,9 +463,9 @@ int VideoCompare(int argc, char* argv[])
             mssimValue = getMSSIM(frameReference, frameUnderTest);
 
             cout << " MSSIM: "
-                << " R " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[2] * 100 << "%"
-                << " G " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[1] * 100 << "%"
-                << " B " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[0] * 100 << "%";
+                 << " R " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[2] * 100 << "%"
+                 << " G " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[1] * 100 << "%"
+                 << " B " << setiosflags(ios::fixed) << setprecision(2) << mssimValue.val[0] * 100 << "%";
         }
 
         cout << "; ";
@@ -306,8 +504,7 @@ double getPSNR(const Mat& I1, const Mat& I2)
 
     if (sse <= 1e-10) {
         return 0;  // for small values, we return zero
-    }
-    else {
+    } else {
         double mse = sse / static_cast<double>(s1.channels() * s1.total());
         double psnr = 10.0 * log10(255.0 * 255.0 / mse);  // Peak Signal-to-noise Ratio
         return psnr;
@@ -388,10 +585,10 @@ int VideoIO(int argc, char* argv[])
     const string NAME = source.substr(0, pAt) + argv[2][0] + ".avi";  // Form the new name with container
     int ex = static_cast<int>(inputVideo.get(CAP_PROP_FOURCC));       // Get Codec Type- Int form
     // Transform from int to char via Bitwise operators
-    char EXT[] = { (char)(ex & 0XFF), (char)((ex & 0XFF00) >> 8), (char)((ex & 0XFF0000) >> 16), (char)((ex & 0XFF000000) >> 24), 0 };
+    char EXT[] = {(char)(ex & 0XFF), (char)((ex & 0XFF00) >> 8), (char)((ex & 0XFF0000) >> 16), (char)((ex & 0XFF000000) >> 24), 0};
 
     Size S = Size((int)inputVideo.get(CAP_PROP_FRAME_WIDTH),  // Acquire input size
-        (int)inputVideo.get(CAP_PROP_FRAME_HEIGHT));
+                  (int)inputVideo.get(CAP_PROP_FRAME_HEIGHT));
 
     VideoWriter outputVideo;  // Open the output
 
@@ -410,7 +607,7 @@ int VideoIO(int argc, char* argv[])
     }
 
     OUTPUTINFO << "Input frame resolution: Width=" << S.width << "  Height=" << S.height
-        << " of nr#: " << inputVideo.get(CAP_PROP_FRAME_COUNT) << endl;
+               << " of nr#: " << inputVideo.get(CAP_PROP_FRAME_COUNT) << endl;
     OUTPUTINFO << "Input codec type: " << EXT << endl;
     int channel = 2;  // Select the channel to save
     switch (argv[2][0]) {
@@ -463,11 +660,11 @@ void DrawAtomAndRook()
     MyFilledCircle(atom_image, Point(AtomAndRookWidth / 2, AtomAndRookWidth / 2));
 
     rectangle(rook_image,
-        Point(0, 7 * AtomAndRookWidth / 8),
-        Point(AtomAndRookWidth, AtomAndRookWidth),
-        Hex2ColorScalar(ColorDarkPink),
-        FILLED,
-        LINE_AA);
+              Point(0, 7 * AtomAndRookWidth / 8),
+              Point(AtomAndRookWidth, AtomAndRookWidth),
+              Hex2ColorScalar(ColorDarkPink),
+              FILLED,
+              LINE_AA);
 
     MyPolygon(rook_image);
 
@@ -528,23 +725,23 @@ void MyPolygon(Mat img)
     rook_points[0][17] = Point(13 * AtomAndRookWidth / 32, 3 * AtomAndRookWidth / 8);
     rook_points[0][18] = Point(5 * AtomAndRookWidth / 16, 13 * AtomAndRookWidth / 16);
     rook_points[0][19] = Point(AtomAndRookWidth / 4, 13 * AtomAndRookWidth / 16);
-    const Point* ppt[1] = { rook_points[0] };
-    int npt[] = { 20 };
+    const Point* ppt[1] = {rook_points[0]};
+    int npt[] = {20};
     fillPoly(img,
-        ppt,
-        npt,
-        1,
-        Hex2ColorScalar(0xdddddd),
-        lineType);
+             ppt,
+             npt,
+             1,
+             Hex2ColorScalar(0xdddddd),
+             lineType);
 }
 
-Scalar Hex2ColorScalar(unsigned long color, bool hasAlpha)
+Scalar Hex2ColorScalar(uint color, bool hasAlpha)
 {
     cout << "[DEBUG] " << __func__ << ": Receiving color 0x" << setfill('0') << setw(hasAlpha ? 4 * 2 : 3 * 2) << right << hex << color << ". hasAlpha: " << boolalpha << hasAlpha << endl;
-    unsigned char red;
-    unsigned char green;
-    unsigned char blue;
-    unsigned char alpha = 0xff;
+    uchar red;
+    uchar green;
+    uchar blue;
+    uchar alpha = 0xff;
     if (hasAlpha) {
         alpha = color & 0xff;
         color >>= 8;
@@ -563,14 +760,13 @@ Scalar HexString2ColorScalar(string str)
         cout << "[WARNING] " << __func__ << ": Unrecognized hex string format for string " << str << ". Example: #222831 or #22283130. Using color #3d7ea6 instead." << endl;
         return HexString2ColorScalar("#3d7ea6");
     }
-    unsigned long color;
+    uint color;
     stringstream ss;
     ss << hex << &str[1];
     ss >> color;  // color is now the hex value representation
     if (str.length() == 1 + 4 * 2) {
         return Hex2ColorScalar(color, true);
-    }
-    else {
+    } else {
         return Hex2ColorScalar(color, false);
     }
 }
