@@ -107,6 +107,7 @@ int imageRandom(int argc, char* argv[])
     RNG rng(0xffffffff);
     Mat image = Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3);
     imshow(WIN_RANDOM, image);
+    //setWindowProperty(WIN_RANDOM, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     waitKey(DELAY);
 
     drawRandomLines(image, WIN_RANDOM, rng);
@@ -142,7 +143,7 @@ int drawRandomLines(Mat image, const string window_name, RNG rng)
         line(image, pt1, pt2, randomColor(rng), rng.uniform(1, 10), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -162,7 +163,7 @@ int drawRandomRectangles(Mat image, const string window_name, RNG rng)
         rectangle(image, pt1, pt2, randomColor(rng), MAX(rng.uniform(-3, 10), -1), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -190,7 +191,7 @@ int drawRandomEllipses(Mat image, const string window_name, RNG rng)
         ellipse(image, center, axes, angle, angle - 100, angle + 200, randomColor(rng), rng.uniform(-1, 9), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -218,7 +219,7 @@ int drawRandomPolylines(Mat image, const string window_name, RNG rng)
         polylines(image, ppt, npt, 2, true, randomColor(rng), rng.uniform(1, 10), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -245,7 +246,7 @@ int drawRandomFilledPolygons(Mat image, const string window_name, RNG rng)
         fillPoly(image, ppt, npt, 2, randomColor(rng), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -260,7 +261,7 @@ int drawRandomCircles(Mat image, const string window_name, RNG rng)
         circle(image, center, rng.uniform(0, 300), randomColor(rng), rng.uniform(-1, 9), LINE_AA);
         imshow(window_name, image);
         if (waitKey(DELAY) >= 0) {
-            OUTPUTERROR << "Something is wrong when drawing: " << i << endl;
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
             return -1;
         }
     }
@@ -270,11 +271,38 @@ int drawRandomCircles(Mat image, const string window_name, RNG rng)
 // TODO: Implement this
 int displayRandomText(Mat image, const string window_name, RNG rng)
 {
+    Point org;
+    for (int i = 1; i < NUMBER; i++) {
+        org.x = rng.uniform(WIN_W_MIN, WIN_W_MAX);
+        org.y = rng.uniform(WIN_H_MIN, WIN_H_MAX);
+
+        putText(image, __func__, org, rng.uniform(0, 8), rng.uniform(0.1, 5.1), randomColor(rng), rng.uniform(1, 10), LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl;
+            return -1;
+        }
+    }
     return 0;
 }
 // TODO: Implement this
 int displayBigEnd(Mat image, const string window_name, RNG rng)
 {
+    Size textsize = getTextSize("Wakanda Forever", FONT_HERSHEY_SCRIPT_SIMPLEX, 3, 5, 0);
+    Point org((WINDOW_WIDTH - textsize.width) / 2, (WINDOW_HEIGHT - textsize.height) / 2);
+    Scalar startColor = randomColor(rng) / 10;
+    for (int i = 0; i < 255; i += 1) {
+        image -= Scalar::all(1);
+        for (auto& value : startColor.val) {
+            value++;
+            value = saturate_cast<uchar>(value);
+        }
+        putText(image, "Wakanda Forever", org, FONT_HERSHEY_SCRIPT_SIMPLEX, 3, startColor, 5, LINE_AA);
+        imshow(window_name, image);
+        if (waitKey(DELAY) >= 0) {
+            return -1;
+        }
+    }
     return 0;
 }
 
