@@ -5,22 +5,7 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/videoio.hpp>
 #include <string>
-
-#define OUTPUTERROR (cout << "[ERROR] " << __func__ << ": ")
-#define OUTPUTWARNING (cout << "[WARNING] " << __func__ << ": ")
-#define OUTPUTINFO (cout << "[INFO] " << __func__ << ": ")
-
-using namespace cv;
-using namespace std;
-
-#include <iomanip>
-#include <iostream>
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/videoio.hpp>
-#include <string>
-
+#include <vector>
 #define OUTPUTERROR (cout << "[ERROR] " << __func__ << ": ")
 #define OUTPUTWARNING (cout << "[WARNING] " << __func__ << ": ")
 #define OUTPUTINFO (cout << "[INFO] " << __func__ << ": ")
@@ -52,11 +37,11 @@ void VideoCompareHelpMessage();
 double getPSNR(const Mat& I1, const Mat& I2);
 Scalar getMSSIM(const Mat& I1, const Mat& I2);
 
-int imageFilter(int argc, char* argv[]);
+int ImageFilter(int argc, char* argv[]);
 void sharpen(const Mat& img, Mat& result);
 static void imageFilterHelp(char* progName);
 
-int imageShow(int argc, char* argv[]);
+int ImageShow(int argc, char* argv[]);
 
 static Scalar randomColor(RNG& rng);
 int drawRandomLines(Mat image, const string window_name, RNG rng);
@@ -67,5 +52,9 @@ int drawRandomFilledPolygons(Mat image, const string window_name, RNG rng);
 int drawRandomCircles(Mat image, const string window_name, RNG rng);
 int displayRandomText(Mat image, const string window_name, RNG rng);
 int displayBigEnd(Mat image, const string window_name, RNG rng);
-int imageRandom(int argc, char* argv[]);
+int ImageRandom(int argc, char* argv[]);
 
+void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRatio = true);
+void resizeImage(Mat& src, Mat& dst, Size size, bool preserveRatio = true);
+Size determineSize(vector<Size> sizes);
+int introVideo(int argc, char* argv[]);

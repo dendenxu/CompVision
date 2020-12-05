@@ -4,6 +4,9 @@
     <ClCompile Include="video.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="random.cpp" />
+    <ClCompile Include="atomrook.cpp" />
+    <ClCompile Include="image.cpp" />
+    <ClCompile Include="introVideo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include.hpp" />

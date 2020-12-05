@@ -121,7 +121,7 @@ int VideoCompare(int argc, char* argv[])
         cout << "; ";
 
         imshow(WINDOW_REFERENCE, frameReference);
-        imshow(WINDOW_UNDERTEST, frameReference);
+        imshow(WINDOW_UNDERTEST, frameUnderTest);
 
         auto end = chrono::steady_clock::now();
         chrono::duration<double> elapsed_seconds = end - start;

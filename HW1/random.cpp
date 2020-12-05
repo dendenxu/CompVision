@@ -25,7 +25,7 @@ constexpr auto fontThickness = CORRECTION(5);
 constexpr auto headFontThickness = CORRECTION(5);
 constexpr auto headFontScale = CORRECTION(3) + 0.0;
 
-int imageRandom(int argc, char* argv[])
+int ImageRandom(int argc, char* argv[])
 {
     const string window_name = "Drawing Random Stuff";
 

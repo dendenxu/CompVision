@@ -11,6 +11,10 @@
         "xutility": "cpp",
         "unordered_map": "cpp",
         "xstring": "cpp",
-        "iomanip": "cpp"
+        "iomanip": "cpp",
+        "chrono": "cpp",
+        "memory": "cpp",
+        "system_error": "cpp",
+        "xmemory": "cpp"
     }
 }

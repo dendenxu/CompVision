@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="atomrook.cpp" />
+    <ClCompile Include="image.cpp" />
+    <ClCompile Include="introVideo.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="random.cpp" />
     <ClCompile Include="video.cpp" />
