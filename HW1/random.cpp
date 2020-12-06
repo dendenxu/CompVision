@@ -5,7 +5,7 @@
     if (output.isOpened()) output << image;                                     \
     randomLastFrame = image;                                                    \
     if (waitKey(frameTime) >= 0) {                                              \
-        OUTPUTERROR << "Something is wrong when drawing: " << dec << i << endl; \
+        OUTPUTERROR << "User want to stop it when drawing: " << dec << i << endl; \
         return -1;                                                              \
     }
 
@@ -34,10 +34,10 @@ static auto randomLastFrame = Mat();
 
 Mat getRandomLastFrame() { return randomLastFrame; }
 
-void randomInit(Size size, int repeat, VideoWriter& writer)
+void randomInit(Size size, int repeat, int frameTime, VideoWriter& writer)
 {
     repeatCount = repeat;  // init using parameters
-    frameTime = 5;         // ! in ms
+    frameTime = frameTime;         // ! in ms
     WINDOW_WIDTH = size.width;
     WINDOW_HEIGHT = size.height;
     xMin = -WINDOW_WIDTH / 2;
@@ -80,6 +80,7 @@ int ImageRandom(int argc, char* argv[])
     displayBigEnd(image, window_name, rng);
 
     waitKey(1);  // ! wait a ms
+
     return 0;
 }
 
@@ -92,17 +93,23 @@ int IntroRandom(int argc, char* argv[])
     imshow(window_name, image);
     //setWindowProperty(WIN_RANDOM, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     waitKey(frameTime);
-
+    headFontScale = headFontScale * 1.5;
+    headFontThickness = headFontThickness * 1.5;
+    displayBigEnd(image, window_name, rng, "Random Intro");
+    headFontScale = headFontScale / 1.5;
+    headFontThickness = headFontThickness / 1.5;
     drawRandomLines(image, window_name, rng);
     drawRandomRectangles(image, window_name, rng);
     //drawRandomEllipses(image, window_name, rng);
     //drawRandomPolylines(image, window_name, rng);
     //drawRandomFilledPolygons(image, window_name, rng);
     drawRandomCircles(image, window_name, rng);
-    displayRandomText(image, window_name, rng);
-    displayBigEnd(image, window_name, rng);
+    displayRandomText(image, window_name, rng, "Initializing...");
+    displayBigEnd(image, window_name, rng, "From 3180105504");
 
-    waitKey(1);  // ! wait a ms
+    destroyWindow(window_name);
+
+    //waitKey(1);  // ! wait a ms
     return 0;
 }
 
@@ -225,24 +232,24 @@ int drawRandomCircles(Mat image, const string window_name, RNG rng)
 }
 
 // TODO: Implement this
-int displayRandomText(Mat image, const string window_name, RNG rng)
+int displayRandomText(Mat image, const string window_name, RNG rng, string text)
 {
     Point org;
     for (int i = 1; i < repeatCount; i++) {
         org.x = rng.uniform(xMin, xMax);
         org.y = rng.uniform(yMin, yMax);
 
-        putText(image, __func__, org, rng.uniform(0, 8), rng.uniform(fontScaleMin, fontScaleMax), randomColor(rng), rng.uniform(1, fontThickness), LINE_AA);
+        putText(image, text, org, rng.uniform(0, 8), rng.uniform(fontScaleMin, fontScaleMax), randomColor(rng), rng.uniform(1, fontThickness), LINE_AA);
         WRITEOUTPUT
     }
     return 0;
 }
 
 // TODO: Implement this
-int displayBigEnd(Mat image, const string window_name, RNG rng)
+int displayBigEnd(Mat image, const string window_name, RNG rng, string text, int font)
 {
-    Size textsize = getTextSize("Wakanda Forever", FONT_HERSHEY_SCRIPT_SIMPLEX, headFontScale, headFontThickness, 0);
-    Point org((WINDOW_WIDTH - textsize.width) / 2, (WINDOW_HEIGHT - textsize.height) / 2);
+    Size textsize = getTextSize(text, font, headFontScale, headFontThickness, 0);
+    Point org((WINDOW_WIDTH - textsize.width) / 2, (WINDOW_HEIGHT) / 2);
     Scalar startColor = randomColor(rng) / 10;
 
     int step = 2;
@@ -252,7 +259,7 @@ int displayBigEnd(Mat image, const string window_name, RNG rng)
             value += step;
             value = saturate_cast<uchar>(value);
         }
-        putText(image, "Wakanda Forever", org, FONT_HERSHEY_SCRIPT_SIMPLEX, headFontScale, startColor, headFontThickness, LINE_AA);
+        putText(image, text, org, font, headFontScale, startColor, headFontThickness, LINE_AA);
         WRITEOUTPUT
     }
     return 0;

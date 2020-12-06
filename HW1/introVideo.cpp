@@ -1,5 +1,34 @@
 #include "include.hpp"
 
+void addCaption(string text, VideoCapture& src, VideoWriter& dst)
+{
+    int width = (int)src.get(CAP_PROP_FRAME_WIDTH);
+    int height = (int)src.get(CAP_PROP_FRAME_HEIGHT);
+    double fps = src.get(CAP_PROP_FPS);
+
+    int fontScale = 1.0 / 1080 * width;
+    int fontThickness = 2.0 / 1080 * width;
+    int offset = 40.0 / 1080 * height;
+    Size textsize = getTextSize(text, FONT_HERSHEY_SCRIPT_SIMPLEX, fontScale, fontThickness, 0);
+    Point org((width - textsize.width) / 2, (height - textsize.height) - offset);
+    Mat frame;
+    int frameCount = 0;
+    namedWindow("Preview");
+    while (1) {
+        src >> frame;
+        if (frame.empty()) {
+            break;
+        }
+        OUTPUTINFO << "Writing caption \"" << text << "\" to frame #" << dec << frameCount << endl;
+        putText(frame, text, org, FONT_HERSHEY_SCRIPT_SIMPLEX, fontScale, Scalar(255, 255, 255), fontThickness, LINE_AA);
+        imshow("Preview", frame);
+        dst << frame;
+        frameCount++;
+        // MARK: 1 ms
+        waitKey(1);
+    }
+}
+
 void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRatio, bool rewind)
 {
     Mat frame, newFrame;
@@ -177,9 +206,9 @@ int IntroVideo(int argc, char* argv[])
         return 1;
     }
 
-    randomInit(maxSize, 100, output);
+    // MARK: 1 ms
+    randomInit(maxSize, 100, 1, output);
     IntroRandom(argc, argv);
-
 
     const int blendFrame = (int)(1.5 * fps);
     const int staticFrame = (int)(1.5 * fps);
@@ -210,5 +239,17 @@ int IntroVideo(int argc, char* argv[])
         resized.copyTo(prev);
     }
     crossDissolve(prev, Mat::zeros(maxSize, CV_8UC3), output, blendFrame);
+
+    output.release();  // ! close the new video for caption
+
+    VideoCapture raw(outputPath);
+    if (!raw.isOpened()) {
+        OUTPUTERROR << "Cannot open " << outputPath << " for reading" << endl;
+    }
+    string outputPathCaption = (fs::path(path) / "OUTPUT_CAPTION.AVI").string();
+    output = VideoWriter(outputPathCaption, codec, fps, maxSize, true);  // reassign the output variable
+
+    addCaption("3180105504 Xu Zhen Presents", raw, output);
+
     return 0;
 }
