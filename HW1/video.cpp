@@ -282,3 +282,61 @@ int VideoIO(int argc, char* argv[])
     OUTPUTINFO << "Finished writing" << endl;
     return 0;
 }
+
+int PlaygroundVideo(int argc, char* argv[])
+{
+    VideoCapture inputVideo("Megamind.avi");
+    int codec = static_cast<int>(inputVideo.get(CAP_PROP_FOURCC));  // Get Codec Type- Int form
+    Size size = Size((int)inputVideo.get(CAP_PROP_FRAME_WIDTH),     // Acquire input size
+                     (int)inputVideo.get(CAP_PROP_FRAME_HEIGHT));
+    Size newSize = Size(1920, 1080);
+    double fps = inputVideo.get(CAP_PROP_FPS);
+    VideoWriter outputVideo("Enlarged.avi", codec, fps, newSize);  // Open the output video
+    resizeVideo(inputVideo, outputVideo, newSize);
+
+    string previewWindow = "Preview Intro Video";
+    namedWindow(previewWindow, WINDOW_AUTOSIZE);
+    string imageName = "lena.png";
+    Mat image = imread(imageName);
+    Mat resized;
+    resizeImage(image, resized, newSize);
+    Mat grey, sobel;
+    cvtColor(image, grey, COLOR_BGR2GRAY);  // Getting gray scale image
+    Sobel(grey, sobel, CV_32F, 1, 0);       // Gray scale sobel
+    double minVal, maxVal;
+    minMaxLoc(sobel, &minVal, &maxVal);
+    Mat draw;
+    double scale = 255.0 / (maxVal - minVal), delta = -minVal * scale;
+    sobel.convertTo(draw, CV_8U, scale, delta);
+
+    OUTPUTINFO << "Getting " << draw.channels() << " channels in gray sobel" << endl;
+    vector<Mat> chan3;
+    for (int i = 0; i < 3; i++) {
+        chan3.push_back(draw);
+    }
+    merge(chan3, draw);  // 3 chan gray scale sobel
+    OUTPUTINFO << "Getting " << draw.channels() << " channels in new sobel" << endl;
+
+    Mat resizedSobel;
+    resizeImage(draw, resizedSobel, newSize);
+
+    imshow(previewWindow, resized);
+
+    string sobelWindow = "Sobel Image";
+    imshow(sobelWindow, resizedSobel);
+
+    Mat last(getLastFrame(inputVideo)), resizedLast;
+
+    if (last.empty()) {
+        OUTPUTERROR << "Last frame of the video is empty" << endl;
+    } else {
+        resizeImage(last, resizedLast, newSize);
+        crossDissolve(resizedLast, resized, outputVideo, (int)fps);
+    }
+
+    crossDissolve(resized, resizedSobel, outputVideo, (int)fps);
+
+    waitKey();
+
+    return 0;
+}
