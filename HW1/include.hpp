@@ -65,3 +65,7 @@ int IntroVideo(int argc, char* argv[]);
 Mat getLastFrame(VideoCapture& video);
 Mat getFirstFrame(VideoCapture& video, bool skipBlack = true);
 string toLowerString(const string& str);
+void randomInit(Size size, int repeat, VideoWriter& writer);
+void crossDissolve(const Mat& f1, const Mat& f2, VideoWriter& video, int count);
+Mat getRandomLastFrame();
+int IntroRandom(int argc, char* argv[]);

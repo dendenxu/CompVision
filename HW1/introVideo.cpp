@@ -177,13 +177,17 @@ int IntroVideo(int argc, char* argv[])
         return 1;
     }
 
+    randomInit(maxSize, 100, output);
+    IntroRandom(argc, argv);
+
+
     const int blendFrame = (int)(1.5 * fps);
     const int staticFrame = (int)(1.5 * fps);
 
     //namedWindow("prev", WINDOW_AUTOSIZE);
     //namedWindow("curr", WINDOW_AUTOSIZE);
 
-    Mat prev(maxSize, CV_8UC3, Scalar(0));
+    Mat prev = getRandomLastFrame();
     //images.push_back(prev.clone());
     Mat resized;
     for (const auto& curr : images) {
