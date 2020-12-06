@@ -402,6 +402,6 @@ FodyWeavers.xsd
 !Megamind.avi
 !Megamind_bugy.avi
 
-
-
-
+# macOS
+.DS_Store
+*.zip
