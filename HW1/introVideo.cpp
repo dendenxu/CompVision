@@ -40,16 +40,21 @@ void resizeImage(Mat& src, Mat& dst, Size size, bool preserveRatio)
     resize(src, roiMat, imageSize);  // resizing into the region of interest
 }
 
+void blendFrames(const Mat& f1, const Mat& f2, VideoWriter& video, int count)
+{
+    // ! manually blending the two images
+    double step = 1.0 / count;
+    double weight = 0;
+    Mat frame;
+    for (int i = 0; i < count; i++, weight += step) {
+        OUTPUTINFO << "Blending at index: " << i << " with a step of " << step << endl;
+        frame = f1 * weight + f2 * (1 - weight);
+        video << frame;
+    }
+}
+
 int introVideo(int argc, char* argv[])
 {
-    string windowName = "Preview Intro Video";
-    //namedWindow(windowName, WINDOW_AUTOSIZE);
-    //string imageName = "lena.png";
-    //Mat image = imread(imageName);
-    //Mat resized;
-    //resizeImage(image, resized, Size(900, 600));
-    //imshow(windowName, resized);
-    //waitKey();
     VideoCapture inputVideo("Megamind.avi");
     int codec = static_cast<int>(inputVideo.get(CAP_PROP_FOURCC));  // Get Codec Type- Int form
     Size size = Size((int)inputVideo.get(CAP_PROP_FRAME_WIDTH),     // Acquire input size
@@ -58,6 +63,41 @@ int introVideo(int argc, char* argv[])
     double fps = inputVideo.get(CAP_PROP_FPS);
     VideoWriter outputVideo("Enlarged.avi", codec, fps, newSize);  // Open the output video
     resizeVideo(inputVideo, outputVideo, newSize);
+
+    string previewWindow = "Preview Intro Video";
+    namedWindow(previewWindow, WINDOW_AUTOSIZE);
+    string imageName = "lena.png";
+    Mat image = imread(imageName);
+    Mat resized;
+    resizeImage(image, resized, newSize);
+    Mat grey, sobel;
+    cvtColor(image, grey, COLOR_BGR2GRAY);  // Getting gray scale image
+    Sobel(grey, sobel, CV_32F, 1, 0);       // Gray scale sobel
+    double minVal, maxVal;
+    minMaxLoc(sobel, &minVal, &maxVal);
+    Mat draw;
+    double scale = 255.0 / (maxVal - minVal), delta = -minVal * scale;
+    sobel.convertTo(draw, CV_8U, scale, delta);
+
+    OUTPUTINFO << "Getting " << draw.channels() << " channels in gray sobel" << endl;
+    vector<Mat> chan3;
+    for (int i = 0; i < 3; i++) {
+        chan3.push_back(draw);
+    }
+    merge(chan3, draw);  // 3 chan gray scale sobel
+    OUTPUTINFO << "Getting " << draw.channels() << " channels in new sobel" << endl;
+
+    Mat resizedSobel;
+    resizeImage(draw, resizedSobel, newSize);
+
+    imshow(previewWindow, resized);
+
+    string sobelWindow = "Sobel Image";
+    imshow(sobelWindow, resizedSobel);
+
+    blendFrames(resized, resizedSobel, outputVideo, 0.5 * fps);
+
+    waitKey();
 
     return 0;
 }
