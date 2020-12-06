@@ -133,7 +133,7 @@ int VideoCompare(int argc, char* argv[])
 
         cout << endl;
         if (timeToWait > 0) {
-            char c = static_cast<char>(waitKey(timeToWait));
+            char c = static_cast<char>(waitKey((int)timeToWait));
             if (c == 27) break;  // ?
         }
     }

@@ -394,3 +394,11 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+
+# User Specific GitIgnore
+*.avi # this is the name we used to output the video
+!Megamind.avi
+!Megamind_bugy.avi
+
+

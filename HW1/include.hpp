@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <opencv2/core/core.hpp>
@@ -18,6 +19,8 @@ constexpr auto ColorLightPink = 0xfcdada;
 
 using namespace cv;
 using namespace std;
+namespace fs = std::filesystem;
+using namespace fs;
 
 Scalar HexString2ColorScalar(string str);
 Scalar Hex2ColorScalar(uint color, bool hasAlpha = false);
@@ -54,7 +57,11 @@ int displayRandomText(Mat image, const string window_name, RNG rng);
 int displayBigEnd(Mat image, const string window_name, RNG rng);
 int ImageRandom(int argc, char* argv[]);
 
-void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRatio = true);
-void resizeImage(Mat& src, Mat& dst, Size size, bool preserveRatio = true);
-Size determineSize(vector<Size> sizes);
-int introVideo(int argc, char* argv[]);
+void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRatio = true, bool rewind = false);
+void resizeImage(const Mat& src, Mat& dst, Size size, bool preserveRatio = true);
+int PlaygroundVideo(int argc, char* argv[]);
+
+int IntroVideo(int argc, char* argv[]);
+Mat getLastFrame(VideoCapture& video);
+Mat getFirstFrame(VideoCapture& video, bool skipBlack = true);
+string toLowerString(const string& str);
