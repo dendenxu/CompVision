@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="video.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="random.cpp" />
+    <ClCompile Include="atomrook.cpp" />
+    <ClCompile Include="image.cpp" />
+    <ClCompile Include="introVideo.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="include.hpp" />
+  </ItemGroup>
+</Project>
