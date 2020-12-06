@@ -1,5 +1,10 @@
 #include "include.hpp"
 
+/** Add a single line caption to a video
+ * Note that the fontScale and fontThickness is in proportion to the video's size
+ * We'd open a window "Preview" to preview the generated video
+ * ! Speed of "Preview" is NOT the actuall FPS of the output video
+ */
 void addCaption(string text, VideoCapture& src, VideoWriter& dst)
 {
     int width = (int)src.get(CAP_PROP_FRAME_WIDTH);
@@ -29,6 +34,11 @@ void addCaption(string text, VideoCapture& src, VideoWriter& dst)
     }
 }
 
+/** Resize a video
+ * You can choose to preserve its aspect ratio
+ * And you can also choose to rewind the video to the beginning
+ * before the resizing starts
+ */
 void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRatio, bool rewind)
 {
     Mat frame, newFrame;
@@ -41,6 +51,10 @@ void resizeVideo(VideoCapture& src, VideoWriter& dst, Size size, bool preserveRa
     };
     //return newFrame; // ! return last frame
 }
+
+/** Resize a image (Mat)
+ * You can choose to preserve aspect ratio
+ */
 void resizeImage(const Mat& src, Mat& dst, Size size, bool preserveRatio)
 {
     // ? should we use dst.create here?
@@ -73,6 +87,10 @@ void resizeImage(const Mat& src, Mat& dst, Size size, bool preserveRatio)
     resize(src, roiMat, imageSize);  // resizing into the region of interest
 }
 
+/** Blend two frames: f1 and f2
+ * With cross-dissolve and write the generated sequence to video
+ * count is the number of blending frame you need
+ */
 void crossDissolve(const Mat& f1, const Mat& f2, VideoWriter& video, int count)
 {
     // ! manually blending the two images
@@ -96,6 +114,9 @@ void crossDissolve(const Mat& f1, const Mat& f2, VideoWriter& video, int count)
     }
 }
 
+/** Print a static image to a video writer
+ * count is the number of frames the image is to be printed
+ */
 void staticImage(const Mat& image, VideoWriter& video, int count)
 {
     for (int i = 0; i < count; i++) {
@@ -103,6 +124,9 @@ void staticImage(const Mat& image, VideoWriter& video, int count)
     }
 }
 
+/** Get the last frame of a video
+ * Note that the VideoCapture object's video pointer will be modified
+ */
 Mat getLastFrame(VideoCapture& video)
 {
     Mat last;
@@ -111,6 +135,9 @@ Mat getLastFrame(VideoCapture& video)
     return last;
 }
 
+/** Get the first (non-black) frame of a video
+ * You can choose to skip the first few black frames
+ */
 Mat getFirstFrame(VideoCapture& video, bool skipBlack)
 {
     Mat first;
@@ -130,6 +157,10 @@ Mat getFirstFrame(VideoCapture& video, bool skipBlack)
     return first;
 }
 
+/** Convert a string to an all lower case string
+ * used to compare file extension
+ * a duplicate with cv::toLowerCase
+ */
 string toLowerString(const string& str)
 {
     string result;
@@ -137,6 +168,7 @@ string toLowerString(const string& str)
                    [](unsigned char c) { return std::tolower(c); });
 }
 
+/** Main function of generating a intro video for homework 1 */
 int IntroVideo(int argc, char* argv[])
 {
     // TODO: WRITE HELP MESSAGE
@@ -145,8 +177,10 @@ int IntroVideo(int argc, char* argv[])
     }
     string path = argv[1];
     Size maxSize(0, 0);
-    vector<VideoCapture> videos;
-    vector<Mat> images;
+    vector<VideoCapture> videos;  // all videos in the folder
+    vector<Mat> images;           // all images in the fiolder
+
+    /** Get the maximum width/height */
     for (const auto& entry : directory_iterator(path)) {
         auto ext = entry.path().extension();  // Find extension
         OUTPUTINFO << entry.path() << " with extension: " << ext << endl;
@@ -187,6 +221,7 @@ int IntroVideo(int argc, char* argv[])
 
     OUTPUTINFO << "Getting size " << maxSize << endl;
 
+    /** Properties to be used in VideoWriter */
     int codec = VideoWriter::fourcc('H', '2', '6', '4');
     double fps = 29.97;
     if (videos.empty()) {
@@ -206,43 +241,35 @@ int IntroVideo(int argc, char* argv[])
         return 1;
     }
 
-    // MARK: 1 ms
-    randomInit(maxSize, 100, 1, output);
-    IntroRandom(argc, argv);
+    // MARK: 1 ms per frame generation
+    randomInit(maxSize, 100, 1, output); /** Set static variable for random.cpp */
+    IntroRandom(argc, argv);             /** Generate random introduction for the video */
 
     const int blendFrame = (int)(1.5 * fps);
     const int staticFrame = (int)(1.5 * fps);
-
-    //namedWindow("prev", WINDOW_AUTOSIZE);
-    //namedWindow("curr", WINDOW_AUTOSIZE);
 
     Mat prev = getRandomLastFrame();
     //images.push_back(prev.clone());
     Mat resized;
     for (const auto& curr : images) {
         resizeImage(curr, resized, maxSize);
-
-        //imshow("prev", prev);
-        //imshow("curr", resized);
-        //waitKey();
-
-        crossDissolve(prev, resized, output, blendFrame);
-        staticImage(resized, output, staticFrame);
-        resized.copyTo(prev);
+        crossDissolve(prev, resized, output, blendFrame); /** Add cross-dissolve blending */
+        staticImage(resized, output, staticFrame);        /** Make the image last a while */
+        resized.copyTo(prev);                             // ! if we use assignment here, prev will use the same underlying matrix as resized
     }
 
     for (auto& curr : videos) {
         resizeImage(getFirstFrame(curr), resized, maxSize);  // resizing is done in place
-        crossDissolve(prev, resized, output, blendFrame);
-        resizeVideo(curr, output, maxSize);
-        resizeImage(getLastFrame(curr), resized, maxSize);
-        resized.copyTo(prev);
+        crossDissolve(prev, resized, output, blendFrame);    /** Add cross-dissolve blending */
+        resizeVideo(curr, output, maxSize);                  /** Generated the resized video */
+        resizeImage(getLastFrame(curr), resized, maxSize);   /** Get the last frame to be cross-dissolved later */
+        resized.copyTo(prev);                                // ! if we use assignment here, prev will use the same underlying matrix as resized
     }
     crossDissolve(prev, Mat::zeros(maxSize, CV_8UC3), output, blendFrame);
 
     output.release();  // ! close the new video for caption
 
-    VideoCapture raw(outputPath);
+    VideoCapture raw(outputPath); // Reopen the closed video for input
     if (!raw.isOpened()) {
         OUTPUTERROR << "Cannot open " << outputPath << " for reading" << endl;
     }

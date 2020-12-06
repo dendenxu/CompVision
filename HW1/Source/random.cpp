@@ -1,5 +1,8 @@
 #include "include.hpp"
+// Make things easier to read
+/** change the parameters according to the desired size of the output video */
 #define CORRECTION(x) (static_cast<int>((static_cast<double>(x)) / 900 * WINDOW_WIDTH))
+/** write frame to video/preview window */
 #define WRITEOUTPUT                                                               \
     imshow(window_name, image);                                                   \
     if (output.isOpened()) output << image;                                       \
@@ -9,31 +12,38 @@
         return -1;                                                                \
     }
 
-static auto repeatCount = 100;
-static auto frameTime = 5;  // ! in ms
+static auto repeatCount = 100;  // How much random stuff to generate? (1 per frame)
+static auto frameTime = 5;      // ! in ms (better call it extra frame time)
 static auto WINDOW_WIDTH = 1920;
 static auto WINDOW_HEIGHT = 1080;
+/** Position */
 static auto xMin = -WINDOW_WIDTH / 2;
 static auto xMax = 3 * WINDOW_WIDTH / 2;
 static auto yMin = -WINDOW_HEIGHT / 2;
 static auto yMax = 3 * WINDOW_HEIGHT / 2;
+/** Ellipse */
 static auto axesMin = 0;
 static auto axesMax = CORRECTION(200);
 static auto angleMin = 0;
 static auto angleMax = CORRECTION(180);
+/** Lines */
 static auto lineWidthMax = CORRECTION(10);
 static auto recLineWidthMax = CORRECTION(10);
 static auto elliLineWidthMax = CORRECTION(9);
+/** Fonts */
 static auto fontScaleMin = 0 + 0.1;
 static auto fontScaleMax = CORRECTION(5) + 0.1;
 static auto fontThickness = CORRECTION(5);
 static auto headFontThickness = CORRECTION(5);
 static auto headFontScale = CORRECTION(3) + 0.0;
+/** Destination */
 static VideoWriter output;
+/** For cross-dissolve blending */
 static auto randomLastFrame = Mat();
 
-Mat getRandomLastFrame() { return randomLastFrame; }
+Mat getRandomLastFrame() { return randomLastFrame; }  // For outter module to access
 
+/** Initialize the parameters */
 void randomInit(Size size, int repeat, int frameTime, VideoWriter& writer)
 {
     repeatCount = repeat;   // init using parameters
@@ -60,6 +70,7 @@ void randomInit(Size size, int repeat, int frameTime, VideoWriter& writer)
     output = writer;
 }
 
+/** Main function to call if we want to play with these random stuff */
 int ImageRandom(int argc, char* argv[])
 {
     const string window_name = "Drawing Random Stuff";
@@ -67,7 +78,6 @@ int ImageRandom(int argc, char* argv[])
     RNG rng(0xffffffff);
     Mat image = Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3);
     imshow(window_name, image);
-    //setWindowProperty(WIN_RANDOM, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     waitKey(frameTime);
 
     drawRandomLines(image, window_name, rng);
@@ -84,35 +94,39 @@ int ImageRandom(int argc, char* argv[])
     return 0;
 }
 
+/** Main function to call if we want to generate the introVideo for HW1 */
 int IntroRandom(int argc, char* argv[])
 {
     const string window_name = "Drawing Random Stuff";
 
-    RNG rng(0xffffffff);
-    Mat image = Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3);
+    RNG rng(0xffffffff);                                          /** A random generator, same seed, persistant results */
+    Mat image = Mat::zeros(WINDOW_HEIGHT, WINDOW_WIDTH, CV_8UC3); /** The mat to draw on */
+
     imshow(window_name, image);
-    //setWindowProperty(WIN_RANDOM, WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     waitKey(frameTime);
+
+    /** Intro Video' introduction's title */
     headFontScale = headFontScale * 1.5;
     headFontThickness = headFontThickness * 1.5;
     displayBigEnd(image, window_name, rng, "Random Intro");
     headFontScale = headFontScale / 1.5;
     headFontThickness = headFontThickness / 1.5;
+
+    /** Draw random stuff */
     drawRandomLines(image, window_name, rng);
     drawRandomRectangles(image, window_name, rng);
-    //drawRandomEllipses(image, window_name, rng);
-    //drawRandomPolylines(image, window_name, rng);
-    //drawRandomFilledPolygons(image, window_name, rng);
     drawRandomCircles(image, window_name, rng);
+
+    /** Draw random text */
     displayRandomText(image, window_name, rng, "Initializing...");
+    /** Display some big text */
     displayBigEnd(image, window_name, rng, "From 3180105504");
-
+    /** Discard the window unless it covers the terminal */
     destroyWindow(window_name);
-
-    //waitKey(1);  // ! wait a ms
     return 0;
 }
 
+/** Generate a random color in cv::Scalar */
 Scalar randomColor(RNG& rng)
 {
     uint color = (uint)rng;
@@ -231,7 +245,6 @@ int drawRandomCircles(Mat image, const string window_name, RNG rng)
     return 0;
 }
 
-// TODO: Implement this
 int displayRandomText(Mat image, const string window_name, RNG rng, string text)
 {
     Point org;
@@ -245,7 +258,7 @@ int displayRandomText(Mat image, const string window_name, RNG rng, string text)
     return 0;
 }
 
-// TODO: Implement this
+/** Similar to cross-dissolve */
 int displayBigEnd(Mat image, const string window_name, RNG rng, string text, int font)
 {
     Size textsize = getTextSize(text, font, headFontScale, headFontThickness, 0);
