@@ -4,12 +4,24 @@ import logging
 import coloredlogs
 import random
 import os
+import matplotlib.pyplot as plt
+from tqdm import tqdm
+import scipy.linalg as la
 
 log = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
 
 
-class FaceMask:
+class EigenFaceException(Exception):
+    def __init__(self, message, errors=None):
+        # Call the base class constructor with the parameters it needs
+        super().__init__(message)
+
+        # Now for your custom code...
+        self.errors = errors
+
+
+class EigenFace:
     # desired face mask values to be used
     def __init__(self, eyesDict=None):
         self.width = 512
@@ -19,6 +31,10 @@ class FaceMask:
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
         self.eyesDict = {} if eyesDict is None else eyesDict
+        self.batch = None  # samples
+        self.covar = None  # covariances
+        self.eigenValues = None
+        self.eigenVectors = None
 
     def alignFace(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
         # M = cv2.getAffineTransform(np.array([left, right]), np.array([mask.left, mask.right]))
@@ -90,7 +106,8 @@ class FaceMask:
         return img
 
     def getEyes(self, name, img=None):
-        name = os.path.basename(name)
+        name = os.path.basename(name)  # get file name
+        name = os.path.splitext(name)[0]  # without ext
         if not name in self.eyesDict:
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             return self.detectFace(gray)[1]  # we only need the face
@@ -103,47 +120,134 @@ class FaceMask:
         eyes = self.getEyes(name, img)
         log.info(f"Getting eyes: {eyes}")
         if not len(eyes) == 2:
-            log.warning(f"Cannot get enough information about this image: {name}")
-            return np.ndarray((0, 0))
+            log.warning(f"Cannot get two eyes from this image: {name}, {len(eyes)} eyes")
+            raise EigenFaceException("Bad image")
         dst = self.alignFace(img, eyes[0], eyes[1])
-        dst = FaceMask.equalizeHistColor(dst)
+        dst = EigenFace.equalizeHistColor(dst)
         if manual_check:
             cv2.imshow(name, dst)
             cv2.waitKey()
             cv2.destroyWindow(name)
         return dst
 
-    def getBatch(self, path="./", ext=".jpg", manual_check=False) -> np.ndarray:
+    def getBatch(self, path="./", ext=".jpg", manual_check=False, append=False) -> np.ndarray:
+        prevLevel = coloredlogs.get_level()
+        if not manual_check:
+            coloredlogs.set_level("WARNING")
+
         names = os.listdir(path)
         names = [os.path.join(path, name) for name in names if name.endswith(ext)]
-        batch = np.ndarray((0, self.colorLen))  # assuming color
-        for name in names:
-            dst = self.getImage(name, manual_check)
-            flat = dst.flatten()
-            if len(flat) != self.colorLen:
-                log.error(f"This image's length {len(flat)} doesn't match up with the mask ({self.colorLen}), single channel? Or grayscale?")
-                continue
-            flat = np.reshape(flat, (1, len(flat)))
-            batch = np.concatenate([batch, flat])
+        if not append:
+            self.batch = np.ndarray((0, self.colorLen))  # assuming color
+        for name in tqdm(names, desc="Processing batch"):
+            try:
+                dst = self.getImage(name, manual_check)
+                flat = dst.flatten()
+                flat = np.reshape(flat, (1, len(flat)))
+                self.batch = np.concatenate([self.batch, flat])
+            except EigenFaceException as e:
+                log.error(e)
 
-        return batch
+        coloredlogs.set_level(prevLevel)
+
+        return self.batch
+
+    def getDict(self, path="./", ext=".eye", quite=True) -> dict:
+
+        prevLevel = coloredlogs.get_level()
+        if quite:
+            coloredlogs.set_level("WARNING")
+
+        names = os.listdir(path)
+        names = [os.path.join(path, name) for name in names if name.endswith(ext)]
+        # assuming # starting line to be comment
+        log.info(f"Good names: {names}")
+        for name in names:
+            with open(name, "r") as f:
+                lines = f.readlines()
+                log.info(f"Processing: {name}")
+                for line in lines:  # actually there should only be one line
+                    line = line.strip()  # get rid of starting/ending space \n
+                    if not line.startswith("#"):  # get rid of comment file
+                        coords = line.split()
+                        name = os.path.basename(name)  # get file name
+                        name = os.path.splitext(name)[0]  # without ext
+                        if len(coords) == 4:
+                            self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
+                            order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
+                            self.eyesDict[name] = self.eyesDict[name][order]
+                        else:
+                            log.error(f"Wrong format for file: {name}, at line: {line}")
+                    else:
+                        log.info(f"Getting comment line: {line}")
+        coloredlogs.set_level(prevLevel)
+        return self.eyesDict
+
+    def getCovarMatrix(self) -> np.ndarray:
+        self.covar = np.cov(self.batch)
+        return self.covar
+
+    def getEigen(self) -> np.ndarray:
+        self.eigenValues, self.eigenVectors = la.eig(self.covar)
+        order = np.argsort(self.eigenValues)[::-1]
+        self.eigenValues = self.eigenValues[order]
+        self.eigenVectors = self.eigenVectors[order]
+        return self.eigenValues, self.eigenVectors
+
+    # def getCovarMatrix(self) -> np.ndarray:
+    #     assert(self.batch is not None, "Should get sample batch before computing covariance matrix")
+    #     nSamples = self.batch.shape[0]
+    #     self.covar = np.zeros((nSamples, nSamples))
+    #     for k in tqdm(range(nSamples**2), "Getting covariance matrix"):
+    #         i = k // nSamples
+    #         j = k % nSamples
+    #         linei = self.batch[i]
+    #         linej = self.batch[j]
+    #         # naive!!!
+    #         if self.covar[j][i] != 0:
+    #             self.covar[i][j] = self.covar[j][i]
+    #         else:
+    #             self.covar[i][j] = self.getCovar(linei, linej)
+
+    # @staticmethod
+    # def getCovar(linei, linej) -> np.ndarray:
+    #     # naive
+    #     meani = np.mean(linei)
+    #     meanj = np.mean(linej)
+    #     unbiasedi = linei - meani
+    #     unbiasedj = linej - meanj
+    #     multi = np.dot(unbiasedi, unbiasedj)
+    #     multi /= len(linei) - 1
+    #     return multi
+
+    def getMean(self):
+        return np.reshape(np.mean(self.batch, 0), (1, -1))
+
+    def unflatten(self, flat: np.ndarray) -> np.ndarray:
+        length = flat.shape[1]
+        if length == self.grayLen:
+            return np.reshape(flat, (self.height, self.width))
+        elif length == self.colorLen:
+            return np.reshape(flat, (self.height, self.width, 3))
+        else:
+            raise EigenFaceException(f"Unsupported flat array of length: {length}, should provide {self.grayLen} ro {self.colorLen}")
+
+    def uint8unflatten(self, flat):
+        img = self.unflatten(flat)
+        return img.astype("uint8")
 
 
 def main():
-    # # img = cv2.imread("test.tiff")
-    # img = cv2.imread("image_0001.jpg")
-    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # mask = FaceMask()
-    # faces, eyes = mask.detectFace(gray)
-    # log.info(f"Getting {faces} and {eyes}")
-    # # assuming the first eye
-    # dst = mask.alignFace(img, eyes[0], eyes[1])
-    # dst = FaceMask.equalizeHistColor(dst)
-    # # color = randcolor()
-    # # cv2.rectangle(dst, mask.left - [10, 10], mask.left + [10, 10], color, 2, cv2.LINE_AA)
-    # # cv2.rectangle(dst, mask.right - [10, 10], mask.right + [10, 10], color, 2, cv2.LINE_AA)
-    # cv2.imshow("Aligned", dst)
-    # cv2.waitKey()
-    # cv2.destroyWindow("Aligned")
-    mask = FaceMask()
-    batch = mask.getBatch("./Caltec Database -faces/", ".jpg")
+    mask = EigenFace()
+    # mask.getDict("./BioFaceDatabase/BioID-FaceDatabase-V1.2", ".eye")
+    # batch = mask.getBatch("./BioFaceDatabase/BioID-FaceDatabase-V1.2", ".pgm")
+    batch = mask.getBatch("./smallSet", ".jpg")
+    mean = mask.getMean()
+    img = mask.uint8unflatten(mean)
+    plt.imshow(img[:, :, ::-1])
+    plt.show()
+    covar = mask.getCovarMatrix()
+    log.info(f"Getting covariance matrix:\n{covar}")
+    values, vectors = mask.getEigen()
+    log.info(f"Getting sorted eigenvalues:\n{values}")
+    log.info(f"Getting sorted eigenvectors:\n{vectors}")
