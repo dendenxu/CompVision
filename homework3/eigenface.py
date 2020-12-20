@@ -41,7 +41,7 @@ class EigenFace:
         self.eigenFaces = None
         self.mean = None
         self.isColor = False
-        self.nEigenFaces = 20
+        self.nEigenFaces = 50
 
     def alignFace(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
         # M = cv2.getAffineTransform(np.array([left, right]), np.array([mask.left, mask.right]))
@@ -230,9 +230,19 @@ class EigenFace:
         flat = img.flatten().astype("float64")
         flat = np.expand_dims(flat, 0)
         flat -= self.mean
-        weights = np.dot(self.eigenVectors, np.squeeze(flat))
-        log.info(f"Weights: {weights}")
-        result += np.average(self.eigenFaces, axis=0, weights=weights)
+        flat = np.transpose(flat)
+        # weights = np.dot(self.eigenVectors, np.squeeze(flat))
+        # log.info(f"Weights: {weights}")
+        # avg = np.average(self.eigenFaces, axis=0, weights=weights)
+        # log.info(f"Getting average value: {avg} of shape {avg.shape}")
+        # result += avg * 255
+        log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
+        weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
+        flat = np.matmul(np.transpose(self.eigenVectors), weights)  # restored
+        log.info(f"Shape of flat: {flat.shape}")
+        flat = np.transpose(flat)
+        result += self.unflatten(flat)
+        # result += self.unflatten(flat)
         return result
 
     # def getCovarMatrix(self) -> np.ndarray:
@@ -280,58 +290,3 @@ class EigenFace:
     def uint8unflatten(self, flat):
         img = self.unflatten(flat)
         return img.astype("uint8")
-
-
-def main():
-    path = "./smallSet"
-    imgext = ".jpg"
-    txtext = ".txt"
-    if len(sys.argv) > 1:
-        path = sys.argv[1]  # the first arg should be the path
-    if len(sys.argv) > 2:
-        imgext = sys.argv[2]  # the second arg should be image extension
-    if len(sys.argv) > 3:
-        txtext = sys.argv[3]  # the third should be the eyes position's text file's ext
-    mask = EigenFace()
-    eyes = mask.getDict(path, txtext)
-    batch = mask.getBatch(path, imgext)
-    mean = mask.getMean()
-    img = mask.uint8unflatten(mean)
-    if len(img.shape) == 3:
-        plt.imshow(img[:, :, ::-1])
-    else:
-        plt.imshow(img, cmap="gray")
-    plt.show()
-    covar = mask.getCovarMatrix()
-    log.info(f"Getting covariance matrix:\n{covar}")
-    values, vectors = mask.getEigen()
-    log.info(f"Getting sorted eigenvalues:\n{values}")
-    log.info(f"Getting sorted eigenvectors:\n{vectors}")
-    faces = mask.getEigenFaces()
-    # with open("model", "wb") as f:
-    #     mask.face_cascade = None
-    #     mask.eye_cascade = None
-    #     f.write(compress_pickle.dumps(mask, compression="gzip"))
-    np.savez_compressed("model.npz", mask.eigenVectors, mask.mean)
-
-
-def test():
-    name = "./test.tiff"
-    if len(sys.argv) > 2:
-        name = sys.argv[1]
-    mask = EigenFace()
-    data = np.load("model.npz")
-    mask.eigenVectors = data["arr_0"]
-    mask.mean = data["arr_1"]
-    img = mask.getImage(name)
-    mask.getEigenFaces()
-    dst = mask.reconstruct(img)
-    if len(dst.shape) == 3:
-        plt.imshow(dst[:, :, ::-1])
-    else:
-        plt.imshow(dst, cmap="gray")
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()
