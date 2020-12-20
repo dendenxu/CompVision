@@ -10,6 +10,7 @@ from tqdm import tqdm
 # import scipy.linalg as la
 import scipy.sparse.linalg as la
 import sys
+import json
 
 log = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
@@ -26,27 +27,28 @@ class EigenFaceException(Exception):
 
 class EigenFace:
     # desired face mask values to be used
-    def __init__(self, eyesDict=None):
-        self.width = 128
-        self.height = 128
-        self.left = np.array([48, 48])  # x, y
-        self.right = np.array([80, 48])  # x, y
+    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=100):
+        self.width = width
+        self.height = height
+        self.left = left  # x, y
+        self.right = right  # x, y
         self.face_cascade = None
         self.eye_cascade = None
-        self.eyesDict = {} if eyesDict is None else eyesDict
+        self.eyesDict = {}
         self.batch = None  # samples
         self.covar = None  # covariances
         self.eigenValues = None
         self.eigenVectors = None
         self.eigenFaces = None
         self.mean = None
-        self.isColor = False
-        self.nEigenFaces = 50
+        self.isColor = isColor
+        self.nEigenFaces = nEigenFaces
+
+        # ! cannot be pickled, rememeber to delete after loading
+        self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
+        self.eye_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
 
     def alignFace(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
-        # M = cv2.getAffineTransform(np.array([left, right]), np.array([mask.left, mask.right]))
-        # dst = cv2.warpAffine(face, M, (mask.width, mask.height))
-        # return dst
         faceVect = left - right
         maskVect = self.left - self.right
         log.info(f"Getting faceVect: {faceVect} and maskVect: {maskVect}")
@@ -72,12 +74,6 @@ class EigenFace:
         return face
 
     def detectFace(self, gray: np.ndarray) -> np.ndarray:
-        # ! cannot be pickled, rememeber to delete after loading
-        if self.face_cascade is None:
-            self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-        if self.eye_cascade is None:
-            self.eye_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
-
         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
         eyes = np.ndarray((0, 2))
         # assuming only one face here
@@ -98,12 +94,9 @@ class EigenFace:
     def colorLen(self):
         return self.grayLen*3
 
-    @staticmethod
-    def randcolor():
-        '''
-        Generate a random color, as list
-        '''
-        return [random.randint(0, 256) for i in range(3)]
+    @property
+    def shouldLen(self):
+        return self.colorLen if self.isColor else self.grayLen
 
     @staticmethod
     def equalizeHistColor(img):
@@ -119,30 +112,39 @@ class EigenFace:
         name = os.path.basename(name)  # get file name
         name = os.path.splitext(name)[0]  # without ext
         if not name in self.eyesDict:
-            if len(img.shape) == 3:
+            # cannot find the already processed data in dict
+            if self.isColor:
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             else:
                 gray = img
-            return self.detectFace(gray)[1]  # we only need the face
+            return self.detectFace(gray)[1]  # we only need the eyes
         else:
             return self.eyesDict[name]
 
     def getImage(self, name, manual_check=False) -> np.ndarray:
+        # the load the image accordingly
         if self.isColor:
-            img = cv2.imread(name)
+            img = cv2.imread(name, cv2.IMREAD_COLOR)
         else:
             img = cv2.imread(name, cv2.IMREAD_GRAYSCALE)
-        # _, eyes = self.detectFace(gray)
+
+        # try getting eye position
         eyes = self.getEyes(name, img)
         log.info(f"Getting eyes: {eyes}")
         if not len(eyes) == 2:
             log.warning(f"Cannot get two eyes from this image: {name}, {len(eyes)} eyes")
             raise EigenFaceException("Bad image")
+
+        # align according to eye position
         dst = self.alignFace(img, eyes[0], eyes[1])
+
+        # hist equalization
         if self.isColor:
             dst = self.equalizeHistColor(dst)
         else:
             dst = cv2.equalizeHist(dst)
+
+        # should we check every image before/after loading?
         if manual_check:
             cv2.imshow(name, dst)
             cv2.waitKey()
@@ -150,6 +152,7 @@ class EigenFace:
         return dst
 
     def getBatch(self, path="./", ext=".jpg", manual_check=False, append=False) -> np.ndarray:
+        # adjust logging level to be quite or not
         prevLevel = coloredlogs.get_level()
         if not manual_check:
             coloredlogs.set_level("WARNING")
@@ -168,125 +171,205 @@ class EigenFace:
                 flat = np.reshape(flat, (1, len(flat)))
                 self.batch = np.concatenate([self.batch, flat])
             except EigenFaceException as e:
-                log.error(e)
+                log.warning(e)
 
         coloredlogs.set_level(prevLevel)
 
         return self.batch
 
-    def getDict(self, path="./", ext=".eye", quite=True) -> dict:
-
+    def getDict(self, path="./", ext=".eye", manual_check=False) -> dict:
         prevLevel = coloredlogs.get_level()
-        if quite:
+        if not manual_check:
             coloredlogs.set_level("WARNING")
 
         names = os.listdir(path)
         names = [os.path.join(path, name) for name in names if name.endswith(ext)]
-        # assuming # starting line to be comment
         log.info(f"Good names: {names}")
         for name in names:
+            # iterate through all txt files
             with open(name, "r") as f:
                 lines = f.readlines()
                 log.info(f"Processing: {name}")
                 for line in lines:  # actually there should only be one line
                     line = line.strip()  # get rid of starting/ending space \n
-                    if not line.startswith("#"):  # get rid of comment file
-                        coords = line.split()
-                        name = os.path.basename(name)  # get file name
-                        name = os.path.splitext(name)[0]  # without ext
-                        if len(coords) == 4:
-                            self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
-                            order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
-                            self.eyesDict[name] = self.eyesDict[name][order]
-                        else:
-                            log.error(f"Wrong format for file: {name}, at line: {line}")
-                    else:
+                    # assuming # starting line to be comment
+                    if line.startswith("#"):  # get rid of comment file
                         log.info(f"Getting comment line: {line}")
+                        continue
+                    coords = line.split()
+                    name = os.path.basename(name)  # get file name
+                    name = os.path.splitext(name)[0]  # without ext
+                    if len(coords) == 4:
+                        self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
+                        order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
+                        self.eyesDict[name] = self.eyesDict[name][order]
+                    else:
+                        log.error(f"Wrong format for file: {name}, at line: {line}")
+
+        # restore the logging level
         coloredlogs.set_level(prevLevel)
         return self.eyesDict
 
     def getCovarMatrix(self) -> np.ndarray:
+        assert self.batch is not None and self.mean is not None
+        # covariance matrix of all the pixel location: width * height * color
         self.covar = np.cov(np.transpose(self.batch-self.mean))  # subtract mean
         log.info(f"Getting covar of shape: {self.covar.shape}")
+        log.info(f"Getting covariance matrix:\n{self.covar}")
         return self.covar
 
     def getEigen(self) -> np.ndarray:
+        assert self.covar is not None
         # self.eigenValues, self.eigenVectors = la.eigh(self.covar, eigvals=(self.covar.shape[0]-self.nEigenFaces, self.covar.shape[0]-1))
         self.eigenValues, self.eigenVectors = la.eigen.eigs(self.covar, k=self.nEigenFaces)
         self.eigenVectors = np.transpose(self.eigenVectors.astype("float64"))
         log.info(f"Getting {self.nEigenFaces} eigenvalues and eigenvectors with shape {self.eigenVectors.shape}")
 
+        # ? probably not neccessary?
+        # might already be sorted according to la.eigen.eigs' algorithm
         order = np.argsort(self.eigenValues)[::-1]
         self.eigenValues = self.eigenValues[order]
         self.eigenVectors = self.eigenVectors[order]
+
+        log.info(f"Getting sorted eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
+        log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
+
         return self.eigenValues, self.eigenVectors
 
-    def getEigenFaces(self) -> np.ndarray:
-        self.eigenFaces = np.array([self.unflatten(vector) for vector in self.eigenVectors])
-        return self.eigenFaces
-
     def reconstruct(self, img: np.ndarray) -> np.ndarray:
-        result = self.unflatten(self.mean)
-        flat = img.flatten().astype("float64")
-        flat = np.expand_dims(flat, 0)
-        flat -= self.mean
-        flat = np.transpose(flat)
-        # weights = np.dot(self.eigenVectors, np.squeeze(flat))
-        # log.info(f"Weights: {weights}")
-        # avg = np.average(self.eigenFaces, axis=0, weights=weights)
-        # log.info(f"Getting average value: {avg} of shape {avg.shape}")
-        # result += avg * 255
+        assert self.eigenVectors is not None and self.mean is not None
+
+        result = self.unflatten(self.mean)  # mean face
+        flat = img.flatten().astype("float64")  # loaded image with double type
+        flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
+        flat -= self.mean  # flatten subtracted with mean face
+        flat = np.transpose(flat)  # (width * height * color) * 1
         log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
+
+        # nEigenFace *(width * height * color) matmal (width * height * color) * 1
         weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
+
+        # luckily, transpose of eigenvector is its inversion
+        # Eigenvectors of real symmetric matrices are orthogonal
+        # ! the magic happens here
+        # data has been lost because nEigenFaces is much smaller than the image dimension span
+        # which is width * height * color
+        # but because we're using PCA (principal components), most of the information will still be retained
         flat = np.matmul(np.transpose(self.eigenVectors), weights)  # restored
         log.info(f"Shape of flat: {flat.shape}")
         flat = np.transpose(flat)
         result += self.unflatten(flat)
-        # result += self.unflatten(flat)
         return result
 
-    # def getCovarMatrix(self) -> np.ndarray:
-    #     assert(self.batch is not None, "Should get sample batch before computing covariance matrix")
-    #     nSamples = self.batch.shape[0]
-    #     self.covar = np.zeros((nSamples, nSamples))
-    #     for k in tqdm(range(nSamples**2), "Getting covariance matrix"):
-    #         i = k // nSamples
-    #         j = k % nSamples
-    #         linei = self.batch[i]
-    #         linej = self.batch[j]
-    #         # naive!!!
-    #         if self.covar[j][i] != 0:
-    #             self.covar[i][j] = self.covar[j][i]
-    #         else:
-    #             self.covar[i][j] = self.getCovar(linei, linej)
-
-    # @staticmethod
-    # def getCovar(linei, linej) -> np.ndarray:
-    #     # naive
-    #     meani = np.mean(linei)
-    #     meanj = np.mean(linej)
-    #     unbiasedi = linei - meani
-    #     unbiasedj = linej - meanj
-    #     multi = np.dot(unbiasedi, unbiasedj)
-    #     multi /= len(linei) - 1
-    #     return multi
-
     def getMean(self):
+        assert self.batch is not None
+        # get the mean values of all the vectorized faces
         self.mean = np.reshape(np.mean(self.batch, 0), (1, -1))
+        log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
         return self.mean
 
     def unflatten(self, flat: np.ndarray) -> np.ndarray:
+        # rubust method for reverting a flat matrix
         if len(flat.shape) == 2:
             length = flat.shape[1]
         else:
             length = flat.shape[0]
         if length == self.grayLen:
+            if self.isColor:
+                log.warning("You're reshaping a grayscale image when color is wanted")
             return np.reshape(flat, (self.height, self.width))
         elif length == self.colorLen:
+            if self.isColor:
+                log.warning("You're reshaping a color image when grayscale is wanted")
             return np.reshape(flat, (self.height, self.width, 3))
         else:
             raise EigenFaceException(f"Unsupported flat array of length: {length}, should provide {self.grayLen} ro {self.colorLen}")
 
     def uint8unflatten(self, flat):
+        # for displaying
         img = self.unflatten(flat)
         return img.astype("uint8")
+
+    def train(self, path, imgext, txtext, modelName="model.npz", useBuiltIn=False):
+        self.getDict(path, txtext)
+        self.getBatch(path, imgext)
+        if useBuiltIn:
+            self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
+            log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
+            log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
+        else:
+            self.getMean()
+            self.getCovarMatrix()
+            self.getEigen()
+        self.loadModel(modelName)
+
+    def loadModel(self, modelName):
+        # load previous eigenvectors/mean value
+        data = np.load(modelName)
+        self.eigenVectors = data["arr_0"]
+        self.mean = data["arr_1"]
+        log.info(f"Loading eigenvectors:\n{self.eigenVectors}")
+        log.info(f"Loading mean:\n{self.mean}")
+
+    def saveModel(self, modelName):
+        np.savez_compressed(modelName, self.eigenVectors, self.mean)
+
+    # ! unused
+    def getEigenFaces(self) -> np.ndarray:
+        assert self.eigenValues is not None
+        self.eigenFaces = np.array([self.unflatten(vector) for vector in self.eigenVectors])
+        return self.eigenFaces
+
+    @staticmethod
+    def randcolor():
+        '''
+        Generate a random color, as list
+        '''
+        return [random.randint(0, 256) for _ in range(3)]
+
+    def getCovarMatrixSlow(self) -> np.ndarray:
+        assert self.batch is not None, "Should get sample batch before computing covariance matrix"
+        nSamples = self.batch.shape[0]
+        self.covar = np.zeros((nSamples, nSamples))
+        for k in tqdm(range(nSamples**2), "Getting covariance matrix"):
+            i = k // nSamples
+            j = k % nSamples
+            linei = self.batch[i]
+            linej = self.batch[j]
+            # naive!!!
+            if self.covar[j][i] != 0:
+                self.covar[i][j] = self.covar[j][i]
+            else:
+                self.covar[i][j] = self.getCovar(linei, linej)
+
+    @staticmethod
+    def getCovar(linei, linej) -> np.ndarray:
+        # naive
+        meani = np.mean(linei)
+        meanj = np.mean(linej)
+        unbiasedi = linei - meani
+        unbiasedj = linej - meanj
+        multi = np.dot(unbiasedi, unbiasedj)
+        multi /= len(linei) - 1
+        return multi
+
+    def loadConfig(self, filename):
+        with open(filename, "rb") as f:
+            data = json.load(f)
+        self.width = data["width"]
+        self.height = data["height"]
+        self.left = np.array(data["left"])
+        self.right = np.array(data["right"])
+        self.isColor = data["isColor"]
+        self.nEigenFaces = data["nEigenFaces"]
+
+    def saveConfig(self, filename):
+        data = {}
+        data["width"] = self.width
+        data["height"] = self.height
+        data["left"] = self.left.tolist()
+        data["right"] = self.right.tolist()
+        data["isColor"] = self.isColor
+        data["nEigenFaces"] = self.nEigenFaces
+        with open(filename, "wb") as f:
+            json.dump(data, f)
