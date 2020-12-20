@@ -227,9 +227,11 @@ class EigenFace:
 
     def reconstruct(self, img: np.ndarray) -> np.ndarray:
         result = self.unflatten(self.mean)
-        flat = img.flatten()
-        # flat = np.expand_dims(flat, 0)
-        weights = np.dot(self.eigenVectors, flat)
+        flat = img.flatten().astype("float64")
+        flat = np.expand_dims(flat, 0)
+        flat -= self.mean
+        weights = np.dot(self.eigenVectors, np.squeeze(flat))
+        log.info(f"Weights: {weights}")
         result += np.average(self.eigenFaces, axis=0, weights=weights)
         return result
 
