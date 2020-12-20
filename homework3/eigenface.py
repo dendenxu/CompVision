@@ -66,11 +66,19 @@ class EigenFace:
         log.info(f"Getting faceCenter: {faceCenter} and maskCenter: {maskCenter}")
         translation = maskCenter - faceCenter
         log.info(f"Should translate the image using: {translation}")
-        M = cv2.getRotationMatrix2D(tuple(faceCenter), angle, scale)
-        face = cv2.warpAffine(face, M, (face.shape[1], face.shape[0]))
-        M = np.array([[1, 0, translation[0]],
-                      [0, 1, translation[1]]])
-        face = cv2.warpAffine(face, M, (self.width, self.height))
+
+        if scale > 1:
+            M = np.array([[1, 0, translation[0]],
+                        [0, 1, translation[1]]])
+            face = cv2.warpAffine(face, M, (self.width, self.height))
+            M = cv2.getRotationMatrix2D(tuple(maskCenter), angle, scale)
+            face = cv2.warpAffine(face, M, (self.width, self.height))
+        else:
+            M = cv2.getRotationMatrix2D(tuple(faceCenter), angle, scale)
+            face = cv2.warpAffine(face, M, (face.shape[1], face.shape[0]))
+            M = np.array([[1, 0, translation[0]],
+                        [0, 1, translation[1]]])
+            face = cv2.warpAffine(face, M, (self.width, self.height))
         return face
 
     def detectFace(self, gray: np.ndarray) -> np.ndarray:
@@ -187,28 +195,31 @@ class EigenFace:
         log.info(f"Good names: {names}")
         for name in names:
             # iterate through all txt files
-            with open(name, "r") as f:
-                lines = f.readlines()
-                log.info(f"Processing: {name}")
-                for line in lines:  # actually there should only be one line
-                    line = line.strip()  # get rid of starting/ending space \n
-                    # assuming # starting line to be comment
-                    if line.startswith("#"):  # get rid of comment file
-                        log.info(f"Getting comment line: {line}")
-                        continue
-                    coords = line.split()
-                    name = os.path.basename(name)  # get file name
-                    name = os.path.splitext(name)[0]  # without ext
-                    if len(coords) == 4:
-                        self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
-                        order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
-                        self.eyesDict[name] = self.eyesDict[name][order]
-                    else:
-                        log.error(f"Wrong format for file: {name}, at line: {line}")
+            self.getDictEntry(name)
 
         # restore the logging level
         coloredlogs.set_level(prevLevel)
         return self.eyesDict
+
+    def getDictEntry(self, name):
+        with open(name, "r") as f:
+            lines = f.readlines()
+            log.info(f"Processing: {name}")
+            for line in lines:  # actually there should only be one line
+                line = line.strip()  # get rid of starting/ending space \n
+                # assuming # starting line to be comment
+                if line.startswith("#"):  # get rid of comment file
+                    log.info(f"Getting comment line: {line}")
+                    continue
+                coords = line.split()
+                name = os.path.basename(name)  # get file name
+                name = os.path.splitext(name)[0]  # without ext
+                if len(coords) == 4:
+                    self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
+                    order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
+                    self.eyesDict[name] = self.eyesDict[name][order]
+                else:
+                    log.error(f"Wrong format for file: {name}, at line: {line}")
 
     def getCovarMatrix(self) -> np.ndarray:
         assert self.batch is not None and self.mean is not None
@@ -283,7 +294,7 @@ class EigenFace:
                 log.warning("You're reshaping a color image when grayscale is wanted")
             return np.reshape(flat, (self.height, self.width, 3))
         else:
-            raise EigenFaceException(f"Unsupported flat array of length: {length}, should provide {self.grayLen} ro {self.colorLen}")
+            raise EigenFaceException(f"Unsupported flat array of length: {length}, should provide {self.grayLen} or {self.colorLen}")
 
     def uint8unflatten(self, flat):
         # for displaying
@@ -301,15 +312,15 @@ class EigenFace:
             self.getMean()
             self.getCovarMatrix()
             self.getEigen()
-        self.loadModel(modelName)
+        self.saveModel(modelName)
 
     def loadModel(self, modelName):
         # load previous eigenvectors/mean value
         data = np.load(modelName)
         self.eigenVectors = data["arr_0"]
         self.mean = data["arr_1"]
-        log.info(f"Loading eigenvectors:\n{self.eigenVectors}")
-        log.info(f"Loading mean:\n{self.mean}")
+        log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
+        log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
 
     def saveModel(self, modelName):
         np.savez_compressed(modelName, self.eigenVectors, self.mean)
