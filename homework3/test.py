@@ -2,6 +2,24 @@
 from eigenface import *
 
 
+def help():
+    log.info("""
+Usage:
+python test.py [<imageFileName> [<modelFileName> [<configFileName>]]]
+
+We're assuming a <imageFileNameNoExt>.txt for eye position like
+474 247 607 245
+Comment line starting with # will be omitted
+Or we'll use OpenCV's haarcascade detector to try locating eyes' positions
+""")
+    log.info("""
+Default parameters are
+    imgname = "./test.tiff"
+    modelName = "./model.npz"
+    config = "./default.json"
+""")
+
+
 def test():
     # process arguments
     imgname = "./test.tiff"
@@ -59,4 +77,5 @@ def test():
 
 
 if __name__ == "__main__":
+    help()
     test()

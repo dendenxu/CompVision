@@ -2,6 +2,25 @@
 from eigenface import *
 
 
+def help():
+    log.info("""
+Usage:
+python test.py [<dataPath> [<imageExt> [<eyesExt> [<configFileName>]]]]
+
+We're assuming a <imageFileNameNoExt>.txt for eye position like
+474 247 607 245
+Comment line starting with # will be omitted
+Or we'll use OpenCV's haarcascade detector to try locating eyes' positions
+""")
+    log.info("""
+Default parameters are:
+    path = "./BioFace Database/BioID-FaceDatabase-V1.2"
+    imgext = ".pgm"
+    txtext = ".eye"
+    config = "./default.json"
+""")
+
+
 def train():
     path = "./BioFace Database/BioID-FaceDatabase-V1.2"
     imgext = ".pgm"
@@ -42,4 +61,5 @@ def train():
 
 
 if __name__ == "__main__":
+    help()
     train()

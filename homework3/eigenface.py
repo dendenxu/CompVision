@@ -372,7 +372,7 @@ class EigenFace:
         assert self.eigenVectors is not None
         log.info(f"Computing eigenfaces")
         self.eigenFaces = np.array([self.unflatten(vector) for vector in self.eigenVectors])
-        log.info(f"Getting eigenfaces\n{self.eigenFaces} of shape {self.eigenFaces.shape}")
+        log.info(f"Getting eigenfaces of shape {self.eigenFaces.shape}")
         return self.eigenFaces
 
     @staticmethod
