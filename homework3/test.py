@@ -10,6 +10,8 @@ def test():
         imgname = sys.argv[1]
     if len(sys.argv) > 2:
         modelName = sys.argv[2]
+    if len(sys.argv) > 3:
+        config = sys.argv[3]
 
     # instantiate new eigenface class
     mask = EigenFace()
