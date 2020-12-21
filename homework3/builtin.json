@@ -1,14 +1,15 @@
 {
-    "width": 256,
-    "height": 256,
+    "width": 512,
+    "height": 512,
     "left": [
-        94,
-        94
+        188,
+        188
     ],
     "right": [
-        162,
-        94
+        324,
+        188
     ],
     "isColor": false,
-    "targetPercentage": 0.9
+    "nEigenFaces": 1000,
+    "targetPercentage": null
 }

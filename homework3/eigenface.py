@@ -27,7 +27,9 @@ class EigenFaceException(Exception):
 
 class EigenFace:
     # desired face mask values to be used
-    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=100, targetPercentage=0.9):
+    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=None, targetPercentage=None):
+        # # at least one of them should be provided
+        # assert nEigenFaces is not None or targetPercentage is not None
         self.width = width
         self.height = height
         self.left = left  # x, y
@@ -233,15 +235,19 @@ class EigenFace:
     def getEigen(self) -> np.ndarray:
         assert self.covar is not None
 
-        log.info(f"Begin computing all eigenvalues")
-        self.eigenValues = la.eigvalsh(self.covar)
-        log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
-        
-        self.getnEigenFaces()
-        # self.eigenValues, self.eigenVectors = la.eigh(self.covar, eigvals=(self.covar.shape[0]-self.nEigenFaces, self.covar.shape[0]-1))
-        log.info(f"Begin computing {self.nEigenFaces} eigenvalues/eigenvectors")
-        self.eigenValues, self.eigenVectors = sla.eigen.eigsh(self.covar, k=self.nEigenFaces)
-        log.info(f"Getting {self.nEigenFaces} eigenvalues and eigenvectors with shape {self.eigenVectors.shape}")
+        if self.targetPercentage is not None:
+            log.info(f"Begin computing all eigenvalues")
+            self.eigenValues = la.eigvalsh(self.covar)
+            log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
+
+            self.getnEigenFaces()
+            self.eigenValues, self.eigenVectors = la.eigh(self.covar, eigvals=(self.covar.shape[0]-self.nEigenFaces, self.covar.shape[0]-1))
+        else:
+            log.info(f"Begin computing {self.nEigenFaces} eigenvalues/eigenvectors")
+            self.eigenValues, self.eigenVectors = sla.eigen.eigsh(self.covar, k=self.nEigenFaces)
+            log.info(f"Getting {self.nEigenFaces} eigenvalues and eigenvectors with shape {self.eigenVectors.shape}")
+
+        # always needed right?
         self.eigenVectors = np.transpose(self.eigenVectors.astype("float64"))
 
         # ? probably not neccessary?
@@ -322,27 +328,21 @@ class EigenFace:
                 log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
                 break  # current index should be nEigenFaces
 
-
     def train(self, path, imgext, txtext, modelName="model.npz", useBuiltIn=False):
         self.getDict(path, txtext)
         self.getBatch(path, imgext)
         if useBuiltIn:
-            log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
-            # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determine energy percentage
-            self.mean, self.eigenVectors, self.eigenValues = cv2.PCACompute2(self.batch, None)
-            log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
-
-            # sort things out
-            # order = np.argsort(self.eigenValues)[::-1]
-            # self.eigenVectors = self.eigenVectors[order]
-
-            self.getnEigenFaces()
-
-            # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
-            self.eigenVectors = self.eigenVectors[0:self.nEigenFaces]
-            
-            # log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
-            # self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
+            if self.targetPercentage is not None:
+                log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
+                # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determine energy percentage
+                self.mean, self.eigenVectors, self.eigenValues = cv2.PCACompute2(self.batch, None)
+                log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
+                self.getnEigenFaces()
+                # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
+                self.eigenVectors = self.eigenVectors[0:self.nEigenFaces]
+            else:
+                log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
+                self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
             log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
             log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
         else:
@@ -410,7 +410,7 @@ class EigenFace:
         self.left = np.array(data["left"])
         self.right = np.array(data["right"])
         self.isColor = data["isColor"]
-        # self.nEigenFaces = data["nEigenFaces"]
+        self.nEigenFaces = data["nEigenFaces"]
         self.targetPercentage = data["targetPercentage"]
 
     def saveConfig(self, filename):
@@ -420,7 +420,7 @@ class EigenFace:
         data["left"] = self.left.tolist()
         data["right"] = self.right.tolist()
         data["isColor"] = self.isColor
-        # data["nEigenFaces"] = self.nEigenFaces
+        data["nEigenFaces"] = self.nEigenFaces
         data["targetPercentage"] = self.targetPercentage
 
         log.info(f"Dumping configuration to {filename}, with content: {data}")

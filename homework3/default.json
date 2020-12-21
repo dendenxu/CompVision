@@ -10,5 +10,6 @@
         48
     ],
     "isColor": false,
-    "targetPercentage": 0.9
+    "nEigenFaces": 20,
+    "targetPercentage": null
 }
