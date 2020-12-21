@@ -6,6 +6,7 @@ def test():
     # process arguments
     imgname = "./test.tiff"
     modelName = "./model.npz"
+    config = "./default.json"
     if len(sys.argv) > 1:
         imgname = sys.argv[1]
     if len(sys.argv) > 2:
@@ -15,7 +16,7 @@ def test():
 
     # instantiate new eigenface class
     mask = EigenFace()
-    mask.loadConfig("builtin.json")
+    mask.loadConfig(config)
     # load previous eigenvectors/mean value
     mask.loadModel(modelName)
     txtname = f"{os.path.splitext(imgname)[0]}.txt"

@@ -11,5 +11,6 @@
     ],
     "isColor": false,
     "nEigenFaces": 1000,
-    "targetPercentage": null
+    "targetPercentage": null,
+    "useBuiltin": true
 }

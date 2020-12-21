@@ -17,7 +17,7 @@ def train():
         config = sys.argv[4]
     mask = EigenFace()
     mask.loadConfig(config)
-    mask.train(path, imgext, txtext, "model.npz", True)
+    mask.train(path, imgext, txtext, "model.npz")
 
 
 if __name__ == "__main__":
