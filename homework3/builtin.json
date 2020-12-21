@@ -13,5 +13,5 @@
     "nEigenFaces": 1000,
     "targetPercentage": null,
     "useBuiltin": true,
-    "useHighgui": false
+    "useHighgui": true
 }

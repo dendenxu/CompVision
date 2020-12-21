@@ -46,7 +46,7 @@ def test():
     dst = mask.reconstruct(img)
 
     if not mask.useHighgui:
-        plt.figure()
+        # plt.figure(figsize=(10, 10))
         plt.subplot(121)
         if mask.isColor:
             plt.imshow(img[:, :, ::-1])
@@ -57,8 +57,8 @@ def test():
             plt.imshow(np.clip(dst[:, :, ::-1], 0, 255).astype("uint8"))
         else:
             plt.imshow(dst, cmap="gray")
+        # plt.savefig("testfigure.png")
         plt.show()
-        plt.savefig("figure.png")
     else:
         if mask.isColor:
             canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1], 3))
@@ -74,6 +74,8 @@ def test():
         cv2.imshow(window, np.clip(canvas, 0, 255).astype("uint8"))
         cv2.waitKey()
         cv2.destroyWindow(window)
+
+    cv2.imwrite("testresult.png", cv2.cvtColor(dst.clip(0, 255).astype("uint8"), cv2.COLOR_GRAY2BGR))
 
 
 if __name__ == "__main__":
