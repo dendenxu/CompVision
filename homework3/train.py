@@ -1,4 +1,5 @@
 #! python
+# python train.py smallSet .pgm .eye builtin.json
 from eigenface import *
 
 
@@ -49,7 +50,7 @@ def train():
         faceCount = faces.shape[0]
 
     mean = np.squeeze(mean)
-    mean = (mean-np.min(mean)) * 255 / (np.max(mean)-np.min(mean))
+    mean = mask.normalizeFace(mean)
     log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
 
     if not mask.useHighgui:
@@ -62,13 +63,13 @@ def train():
         plt.show()
     else:
         window = f"Mean EigenFaces of First {faceCount}"
-        cv2.imshow(window, np.clip(mean, 0, 255).astype("uint8"))
+        cv2.imshow(window, mean)
         cv2.waitKey()
         cv2.destroyWindow(window)
 
     # plt.imshow(mean[:, :, ::-1])
     # plt.show()
-    cv2.imwrite("eigenmean.png", np.clip(mean, 0, 255).astype("uint8"))
+    cv2.imwrite("eigenmean.png", mean)
 
 
 if __name__ == "__main__":

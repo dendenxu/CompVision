@@ -276,6 +276,8 @@ class EigenFace:
         # nEigenFace *(width * height * color) matmal (width * height * color) * 1
         weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
 
+        similarFace = self.unflatten(self.eigenVectors[np.argmax(weights)])
+
         # luckily, transpose of eigenvector is its inversion
         # Eigenvectors of real symmetric matrices are orthogonal
         # ! the magic happens here
@@ -286,7 +288,7 @@ class EigenFace:
         log.info(f"Shape of flat: {flat.shape}")
         flat = np.transpose(flat)
         result += self.unflatten(flat)
-        return result
+        return result, similarFace
 
     def getMean(self):
         assert self.batch is not None
@@ -450,3 +452,7 @@ class EigenFace:
         log.info(f"Dumping configuration to {filename}, with content: {data}")
         with open(filename, "wb") as f:
             json.dump(data, f)
+
+    @staticmethod
+    def normalizeFace(mean: np.ndarray) -> np.ndarray:
+        return ((mean-np.min(mean)) * 255 / (np.max(mean)-np.min(mean))).astype("uint8")
