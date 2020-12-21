@@ -6,7 +6,7 @@ def train():
     path = "./BioFace Database/BioID-FaceDatabase-V1.2"
     imgext = ".pgm"
     txtext = ".eye"
-    config = "builtin.json"
+    config = "default.json"
     if len(sys.argv) > 1:
         path = sys.argv[1]  # the first arg should be the path
     if len(sys.argv) > 2:

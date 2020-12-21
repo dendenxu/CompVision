@@ -12,5 +12,6 @@
     "isColor": false,
     "nEigenFaces": 1000,
     "targetPercentage": null,
-    "useBuiltin": true
+    "useBuiltin": true,
+    "useHighgui": false
 }

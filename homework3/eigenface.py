@@ -27,7 +27,7 @@ class EigenFaceException(Exception):
 
 class EigenFace:
     # desired face mask values to be used
-    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=None, targetPercentage=None, useBuiltin=False):
+    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=None, targetPercentage=None, useBuiltin=False, useHighgui=True):
         # # at least one of them should be provided
         # assert nEigenFaces is not None or targetPercentage is not None
         self.width = width
@@ -47,6 +47,7 @@ class EigenFace:
         self.nEigenFaces = nEigenFaces
         self.targetPercentage = targetPercentage
         self.useBuiltin = useBuiltin
+        self.useHighgui = useHighgui
 
         # ! cannot be pickled, rememeber to delete after loading
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
@@ -412,8 +413,22 @@ class EigenFace:
         self.right = np.array(data["right"])
         self.isColor = data["isColor"]
         self.nEigenFaces = data["nEigenFaces"]
+
+        # setting this to null will reduce computation significantly
+        # since we'll only have to compute nEigenFaces eigenvalues/eigenvectors
+        # setting to a value would disable nEigenFaces parameter, computing from target information retain rate "targetPercentage"
         self.targetPercentage = data["targetPercentage"]
+
+        # whether we should use cv2.PCACompute/cv2.PCACompute2 or our own PCA computation
+        # note the builtin methods are much faster and memory efficient if we're only requiring
+        # a small subset of all eigenvectors (don't have to allocate the covariance matrix)
+        # enabling us to do large scale computation, even with colored image of 512 * 512
         self.useBuiltin = data["useBuiltin"]
+
+        # whether we should use matplotlib to draw results or HIGHGUI of opencv
+        # I think HIGHGUI sucks at basic figure management, I'd prefer matplotlib for figure drawing
+        # but if we're looking for a more general solution for GUI, it is a choice
+        self.useHighgui = data["useHighgui"]
 
     def saveConfig(self, filename):
         data = {}
@@ -425,6 +440,7 @@ class EigenFace:
         data["nEigenFaces"] = self.nEigenFaces
         data["targetPercentage"] = self.targetPercentage
         data["useBuiltin"] = self.useBuiltin
+        data["useHighgui"] = self.useHighgui
 
         log.info(f"Dumping configuration to {filename}, with content: {data}")
         with open(filename, "wb") as f:
