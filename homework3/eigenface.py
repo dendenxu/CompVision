@@ -333,9 +333,8 @@ class EigenFace:
             log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
 
             # sort things out
-            order = np.argsort(self.eigenValues)[::-1]
-            self.eigenVectors = self.eigenVectors[order]
-            self.eigenVectors = np.squeeze(self.eigenVectors)
+            # order = np.argsort(self.eigenValues)[::-1]
+            # self.eigenVectors = self.eigenVectors[order]
 
             self.getnEigenFaces()
 
