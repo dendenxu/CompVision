@@ -19,6 +19,27 @@ def train():
     mask.loadConfig(config)
     mask.train(path, imgext, txtext, "model.npz")
 
+    faces = mask.getEigenFaces()
+    if faces.shape[0] >= 10:
+        mean = np.mean(faces[0:10], 0)  # first 10 eigenfaces' average
+    else:
+        log.warning(f"We've only got {faces.shape[0]} eigenfaces to get mean value on")
+        mean = np.mean(faces, 0)
+
+    mean = np.squeeze(mean)
+    log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
+
+    if not mask.useHighgui:
+        if mask.isColor:
+            plt.imshow(mean[:, :, ::-1])  # double imshow
+        else:
+            plt.imshow(mean, cmap="gray")
+        plt.show()
+        plt.savefig("eigenmean.png")
+    else:
+        cv2.imshow(np.clip(mean, 0, 255).astype("uint8"))
+        cv2.waitKey()
+
 
 if __name__ == "__main__":
     train()

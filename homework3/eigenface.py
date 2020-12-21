@@ -355,6 +355,7 @@ class EigenFace:
 
     def loadModel(self, modelName):
         # load previous eigenvectors/mean value
+        log.info(f"Loading model: {modelName}")
         data = np.load(modelName)
         self.eigenVectors = data["arr_0"]
         self.mean = data["arr_1"]
@@ -362,12 +363,16 @@ class EigenFace:
         log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
 
     def saveModel(self, modelName):
+        log.info(f"Saving model: {modelName}")
         np.savez_compressed(modelName, self.eigenVectors, self.mean)
+        log.info(f"Model: {modelName} saved")
 
     # ! unused
     def getEigenFaces(self) -> np.ndarray:
-        assert self.eigenValues is not None
+        assert self.eigenVectors is not None
+        log.info(f"Computing eigenfaces")
         self.eigenFaces = np.array([self.unflatten(vector) for vector in self.eigenVectors])
+        log.info(f"Getting eigenfaces\n{self.eigenFaces} of shape {self.eigenFaces.shape}")
         return self.eigenFaces
 
     @staticmethod

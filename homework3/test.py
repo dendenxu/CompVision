@@ -46,21 +46,16 @@ def test():
             canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1], 3))
             canvas[:, 0:img.shape[1], :] = img
             canvas[:, img.shape[1]::, :] = dst
-            window = "Original/EigenReconstruct"
-            cv2.namedWindow(window)
-            cv2.imshow(window, np.clip(canvas, 0, 255).astype("uint8"))
-            cv2.waitKey()
-            cv2.destroyWindow(window)
-
         else:
             canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]))
             canvas[:, 0:img.shape[1]] = img
             canvas[:, img.shape[1]::] = dst
-            window = "Original/EigenReconstruct"
-            cv2.namedWindow(window)
-            cv2.imshow(window, np.clip(canvas, 0, 255).astype("uint8"))
-            cv2.waitKey()
-            cv2.destroyWindow(window)
+
+        window = "Original/EigenReconstruct"
+        cv2.namedWindow(window)
+        cv2.imshow(window, np.clip(canvas, 0, 255).astype("uint8"))
+        cv2.waitKey()
+        cv2.destroyWindow(window)
 
 
 if __name__ == "__main__":
