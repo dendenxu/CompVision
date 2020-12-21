@@ -7,7 +7,6 @@ import os
 import matplotlib.pyplot as plt
 from numpy.core.fromnumeric import mean
 from tqdm import tqdm
-# import scipy.linalg as la
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
 import sys
@@ -238,16 +237,7 @@ class EigenFace:
         self.eigenValues = la.eigvalsh(self.covar)
         log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
         
-        self.nEigenFaces = len(self.eigenValues)
-        targetValue = np.sum(self.eigenValues) * self.targetPercentage
-        accumulation = 0
-        for index, value in enumerate(self.eigenFaces):
-            accumulation += value
-            if accumulation > targetValue:
-                self.nEigenFaces = index + 1
-                log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
-                break  # current index should be nEigenFaces
-
+        self.getnEigenFaces()
         # self.eigenValues, self.eigenVectors = la.eigh(self.covar, eigvals=(self.covar.shape[0]-self.nEigenFaces, self.covar.shape[0]-1))
         log.info(f"Begin computing {self.nEigenFaces} eigenvalues/eigenvectors")
         self.eigenValues, self.eigenVectors = sla.eigen.eigsh(self.covar, k=self.nEigenFaces)
@@ -319,29 +309,40 @@ class EigenFace:
         img = self.unflatten(flat)
         return img.astype("uint8")
 
+    def getnEigenFaces(self):
+        assert self.eigenValues is not None
+        # get energy
+        self.nEigenFaces = len(self.eigenValues)
+        targetValue = np.sum(self.eigenValues) * self.targetPercentage
+        accumulation = 0
+        for index, value in enumerate(self.eigenValues):
+            accumulation += value
+            if accumulation > targetValue:
+                self.nEigenFaces = index + 1
+                log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
+                break  # current index should be nEigenFaces
+
+
     def train(self, path, imgext, txtext, modelName="model.npz", useBuiltIn=False):
         self.getDict(path, txtext)
         self.getBatch(path, imgext)
         if useBuiltIn:
-            log.info(f"Beginning builtin PCACompute for nEigenFaces")
-            # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determin energy percentage
+            log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
+            # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determine energy percentage
             self.mean, self.eigenVectors, self.eigenValues = cv2.PCACompute2(self.batch, None)
             log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
 
-            self.nEigenFaces = len(self.eigenValues)
-            targetValue = np.sum(self.eigenValues) * self.targetPercentage
-            accumulation = 0
-            for index, value in enumerate(self.eigenFaces):
-                accumulation += value
-                if accumulation > targetValue:
-                    self.nEigenFaces = index + 1
-                    log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
-                    break  # current index should be nEigenFaces
-
+            # sort things out
             order = np.argsort(self.eigenValues)[::-1]
-            # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
-            self.eigenVectors = self.eigenVectors[order][0:self.nEigenFaces]
+            self.eigenVectors = self.eigenVectors[order]
+            self.eigenVectors = np.squeeze(self.eigenVectors)
 
+            self.getnEigenFaces()
+
+            # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
+            self.eigenVectors = self.eigenVectors[0:self.nEigenFaces]
+            
+            # log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
             # self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
             log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
             log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")

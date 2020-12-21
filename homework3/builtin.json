@@ -1,13 +1,13 @@
 {
-    "width": 512,
-    "height": 512,
+    "width": 256,
+    "height": 256,
     "left": [
-        188,
-        188
+        94,
+        94
     ],
     "right": [
-        324,
-        188
+        162,
+        94
     ],
     "isColor": false,
     "targetPercentage": 0.9
