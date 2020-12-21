@@ -1,8 +1,9 @@
+#! python
 from eigenface import *
 
 
 def train():
-    path = "./BioFaceDatabase/BioID-FaceDatabase-V1.2"
+    path = "./BioFace Database/BioID-FaceDatabase-V1.2"
     imgext = ".pgm"
     txtext = ".eye"
     if len(sys.argv) > 1:

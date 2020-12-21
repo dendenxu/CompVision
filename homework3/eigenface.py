@@ -237,6 +237,7 @@ class EigenFace:
         log.info(f"Begin computing all eigenvalues")
         self.eigenValues = la.eigvalsh(self.covar)
         log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
+        
         self.nEigenFaces = len(self.eigenValues)
         targetValue = np.sum(self.eigenValues) * self.targetPercentage
         accumulation = 0
@@ -322,7 +323,26 @@ class EigenFace:
         self.getDict(path, txtext)
         self.getBatch(path, imgext)
         if useBuiltIn:
-            self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
+            log.info(f"Beginning builtin PCACompute for nEigenFaces")
+            # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determin energy percentage
+            self.mean, self.eigenVectors, self.eigenValues = cv2.PCACompute2(self.batch, None)
+            log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
+
+            self.nEigenFaces = len(self.eigenValues)
+            targetValue = np.sum(self.eigenValues) * self.targetPercentage
+            accumulation = 0
+            for index, value in enumerate(self.eigenFaces):
+                accumulation += value
+                if accumulation > targetValue:
+                    self.nEigenFaces = index + 1
+                    log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
+                    break  # current index should be nEigenFaces
+
+            order = np.argsort(self.eigenValues)[::-1]
+            # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
+            self.eigenVectors = self.eigenVectors[order][0:self.nEigenFaces]
+
+            # self.mean, self.eigenVectors = cv2.PCACompute(self.batch, None, maxComponents=self.nEigenFaces)
             log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
             log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
         else:

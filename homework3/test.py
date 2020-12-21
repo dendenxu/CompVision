@@ -1,3 +1,4 @@
+#! python
 from eigenface import *
 
 
@@ -33,6 +34,7 @@ def test():
     else:
         plt.imshow(dst, cmap="gray")
     plt.show()
+    plt.savefig("figure.png")
 
 
 if __name__ == "__main__":
