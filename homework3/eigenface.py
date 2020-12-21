@@ -384,6 +384,7 @@ class EigenFace:
     def loadConfig(self, filename):
         with open(filename, "rb") as f:
             data = json.load(f)
+        log.info(f"Loading configuration from {filename}, with content: {data}")
         self.width = data["width"]
         self.height = data["height"]
         self.left = np.array(data["left"])
@@ -402,5 +403,6 @@ class EigenFace:
         # data["nEigenFaces"] = self.nEigenFaces
         data["targetPercentage"] = self.targetPercentage
 
+        log.info(f"Dumping configuration to {filename}, with content: {data}")
         with open(filename, "wb") as f:
             json.dump(data, f)
