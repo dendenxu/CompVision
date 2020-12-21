@@ -1,5 +1,6 @@
 #! python
 # python train.py smallSet .pgm .eye builtin.json
+from math import sqrt
 from eigenface import *
 
 
@@ -41,14 +42,7 @@ def train():
 
     faces = mask.getEigenFaces()
 
-    faceCount = 10
-    if faces.shape[0] >= 10:
-        mean = np.mean(faces[0:10], 0)  # first 10 eigenfaces' average
-    else:
-        log.warning(f"We've only got {faces.shape[0]} eigenfaces to get mean value on")
-        mean = np.mean(faces, 0)
-        faceCount = faces.shape[0]
-
+    mean = np.mean(faces, 0)
     mean = np.squeeze(mean)
     mean = mask.normalizeFace(mean)
     log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
@@ -62,7 +56,7 @@ def train():
         # plt.savefig("eigenmeanfigure.png")
         plt.show()
     else:
-        window = f"Mean EigenFaces of First {faceCount}"
+        window = f"Mean EigenFaces of {faces.shape[0]}"
         cv2.imshow(window, mean)
         cv2.waitKey()
         cv2.destroyWindow(window)
@@ -70,6 +64,31 @@ def train():
     # plt.imshow(mean[:, :, ::-1])
     # plt.show()
     cv2.imwrite("eigenmean.png", mean)
+
+    # ! Showing only first 12 faces if more is provided
+    cols = 4
+    rows = 3
+    faceCount = min(faces.shape[0], cols*rows)
+    canvas = np.zeros((rows * faces.shape[1], cols * faces.shape[2]), dtype="uint8")
+    for index in range(faceCount):
+        i = index // cols
+        j = index % cols
+        canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = mask.normalizeFace(faces[index])
+        log.info(f"Filling EigenFace of {index} at {i}, {j}")
+
+    if not mask.useHighgui:
+        if mask.isColor:
+            plt.imshow(canvas)
+        else:
+            plt.imshow(canvas, cmap="gray")
+        plt.show()
+    else:
+        window = f"First {faceCount} EigenFaces"
+        cv2.imshow(window, canvas)
+        cv2.waitKey()
+        cv2.destroyWindow(window)
+
+    cv2.imwrite("eigenfaces.png", canvas)
 
 
 if __name__ == "__main__":

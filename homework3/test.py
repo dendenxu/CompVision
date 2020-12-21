@@ -69,14 +69,12 @@ def test():
     else:
         if mask.isColor:
             canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1], 3), dtype="uint8")
-            canvas[:, 0:img.shape[1], :] = img
-            canvas[:, img.shape[1]:img.shape[1]+dst.shape[1], :] = dst
-            canvas[:, img.shape[1]+dst.shape[1]::, :] = similar
         else:
             canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1]), dtype="uint8")
-            canvas[:, 0:img.shape[1]] = img
-            canvas[:, img.shape[1]:img.shape[1]+dst.shape[1]] = dst
-            canvas[:, img.shape[1]+dst.shape[1]::] = similar
+
+        canvas[:, 0:img.shape[1]] = img
+        canvas[:, img.shape[1]:img.shape[1]+dst.shape[1]] = dst
+        canvas[:, img.shape[1]+dst.shape[1]::] = similar
 
         window = "Original | EigenReconstruct | Most Similar"
         cv2.namedWindow(window)
