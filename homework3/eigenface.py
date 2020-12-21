@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 from numpy.core.fromnumeric import mean
 from tqdm import tqdm
 # import scipy.linalg as la
-import scipy.sparse.linalg as la
+import scipy.sparse.linalg as sla
+import scipy.linalg as la
 import sys
 import json
 
@@ -27,7 +28,7 @@ class EigenFaceException(Exception):
 
 class EigenFace:
     # desired face mask values to be used
-    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=100):
+    def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=100, targetPercentage=0.9):
         self.width = width
         self.height = height
         self.left = left  # x, y
@@ -43,6 +44,7 @@ class EigenFace:
         self.mean = None
         self.isColor = isColor
         self.nEigenFaces = nEigenFaces
+        self.targetPercentage = targetPercentage
 
         # ! cannot be pickled, rememeber to delete after loading
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
@@ -69,7 +71,7 @@ class EigenFace:
 
         if scale > 1:
             M = np.array([[1, 0, translation[0]],
-                        [0, 1, translation[1]]])
+                          [0, 1, translation[1]]])
             face = cv2.warpAffine(face, M, (self.width, self.height))
             M = cv2.getRotationMatrix2D(tuple(maskCenter), angle, scale)
             face = cv2.warpAffine(face, M, (self.width, self.height))
@@ -77,7 +79,7 @@ class EigenFace:
             M = cv2.getRotationMatrix2D(tuple(faceCenter), angle, scale)
             face = cv2.warpAffine(face, M, (face.shape[1], face.shape[0]))
             M = np.array([[1, 0, translation[0]],
-                        [0, 1, translation[1]]])
+                          [0, 1, translation[1]]])
             face = cv2.warpAffine(face, M, (self.width, self.height))
         return face
 
@@ -231,10 +233,25 @@ class EigenFace:
 
     def getEigen(self) -> np.ndarray:
         assert self.covar is not None
+
+        log.info(f"Begin computing all eigenvalues")
+        self.eigenValues = la.eigvalsh(self.covar)
+        log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
+        self.nEigenFaces = len(self.eigenValues)
+        targetValue = np.sum(self.eigenValues) * self.targetPercentage
+        accumulation = 0
+        for index, value in enumerate(self.eigenFaces):
+            accumulation += value
+            if accumulation > targetValue:
+                self.nEigenFaces = index + 1
+                log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
+                break  # current index should be nEigenFaces
+
         # self.eigenValues, self.eigenVectors = la.eigh(self.covar, eigvals=(self.covar.shape[0]-self.nEigenFaces, self.covar.shape[0]-1))
-        self.eigenValues, self.eigenVectors = la.eigen.eigs(self.covar, k=self.nEigenFaces)
-        self.eigenVectors = np.transpose(self.eigenVectors.astype("float64"))
+        log.info(f"Begin computing {self.nEigenFaces} eigenvalues/eigenvectors")
+        self.eigenValues, self.eigenVectors = sla.eigen.eigsh(self.covar, k=self.nEigenFaces)
         log.info(f"Getting {self.nEigenFaces} eigenvalues and eigenvectors with shape {self.eigenVectors.shape}")
+        self.eigenVectors = np.transpose(self.eigenVectors.astype("float64"))
 
         # ? probably not neccessary?
         # might already be sorted according to la.eigen.eigs' algorithm
@@ -372,7 +389,8 @@ class EigenFace:
         self.left = np.array(data["left"])
         self.right = np.array(data["right"])
         self.isColor = data["isColor"]
-        self.nEigenFaces = data["nEigenFaces"]
+        # self.nEigenFaces = data["nEigenFaces"]
+        self.targetPercentage = data["targetPercentage"]
 
     def saveConfig(self, filename):
         data = {}
@@ -381,6 +399,8 @@ class EigenFace:
         data["left"] = self.left.tolist()
         data["right"] = self.right.tolist()
         data["isColor"] = self.isColor
-        data["nEigenFaces"] = self.nEigenFaces
+        # data["nEigenFaces"] = self.nEigenFaces
+        data["targetPercentage"] = self.targetPercentage
+
         with open(filename, "wb") as f:
             json.dump(data, f)
