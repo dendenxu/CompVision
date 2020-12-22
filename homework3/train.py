@@ -47,6 +47,23 @@ def train():
     mean = mask.normalizeFace(mean)
     log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
 
+    cv2.imwrite("eigenmean.png", mean)
+
+
+    # ! Showing only first 12 faces if more is provided
+    cols = 4
+    rows = 3
+    faceCount = min(faces.shape[0], cols*rows)
+    canvas = np.zeros((rows * faces.shape[1], cols * faces.shape[2]), dtype="uint8")
+    for index in range(faceCount):
+        i = index // cols
+        j = index % cols
+        canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = mask.normalizeFace(faces[index])
+        log.info(f"Filling EigenFace of {index} at {i}, {j}")
+
+    cv2.imwrite("eigenfaces.png", canvas)
+
+
     if not mask.useHighgui:
         # plt.figure(figsize=(10, 10))
         if mask.isColor:
@@ -61,21 +78,7 @@ def train():
         cv2.waitKey()
         cv2.destroyWindow(window)
 
-    # plt.imshow(mean[:, :, ::-1])
-    # plt.show()
-    cv2.imwrite("eigenmean.png", mean)
-
-    # ! Showing only first 12 faces if more is provided
-    cols = 4
-    rows = 3
-    faceCount = min(faces.shape[0], cols*rows)
-    canvas = np.zeros((rows * faces.shape[1], cols * faces.shape[2]), dtype="uint8")
-    for index in range(faceCount):
-        i = index // cols
-        j = index % cols
-        canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = mask.normalizeFace(faces[index])
-        log.info(f"Filling EigenFace of {index} at {i}, {j}")
-
+   
     if not mask.useHighgui:
         if mask.isColor:
             plt.imshow(canvas)
@@ -88,7 +91,6 @@ def train():
         cv2.waitKey()
         cv2.destroyWindow(window)
 
-    cv2.imwrite("eigenfaces.png", canvas)
 
 
 if __name__ == "__main__":

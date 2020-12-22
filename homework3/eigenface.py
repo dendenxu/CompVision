@@ -308,7 +308,7 @@ class EigenFace:
                 log.warning("You're reshaping a grayscale image when color is wanted")
             return np.reshape(flat, (self.height, self.width))
         elif length == self.colorLen:
-            if self.isColor:
+            if not self.isColor:
                 log.warning("You're reshaping a color image when grayscale is wanted")
             return np.reshape(flat, (self.height, self.width, 3))
         else:

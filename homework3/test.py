@@ -48,6 +48,8 @@ def test():
     dst = mask.normalizeFace(dst)
     similar = mask.normalizeFace(similar)
 
+    cv2.imwrite("testresult.png", dst)
+    
     if not mask.useHighgui:
         # plt.figure(figsize=(10, 10))
         plt.subplot(131)
@@ -82,7 +84,6 @@ def test():
         cv2.waitKey()
         cv2.destroyWindow(window)
 
-    cv2.imwrite("testresult.png", dst)
 
 
 if __name__ == "__main__":
