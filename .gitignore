@@ -407,4 +407,5 @@ FodyWeavers.xsd
 *.zip
 
 # large model
+*/model.npz.*
 */model.npz

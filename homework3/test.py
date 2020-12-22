@@ -49,41 +49,27 @@ def test():
     similar = mask.normalizeFace(similar)
 
     cv2.imwrite("testresult.png", dst)
-    
+    if mask.isColor:
+        canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1], 3), dtype="uint8")
+    else:
+        canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1]), dtype="uint8")
+
+    canvas[:, 0:img.shape[1]] = img
+    canvas[:, img.shape[1]:img.shape[1]+dst.shape[1]] = dst
+    canvas[:, img.shape[1]+dst.shape[1]::] = similar
+
+    cv2.imwrite("similar.png", canvas)
+
     if not mask.useHighgui:
-        # plt.figure(figsize=(10, 10))
-        plt.subplot(131)
-        if mask.isColor:
-            plt.imshow(img[:, :, ::-1])
-        else:
-            plt.imshow(img, cmap="gray")
-        plt.subplot(132)
-        if mask.isColor:
-            plt.imshow(dst)
-        else:
-            plt.imshow(dst, cmap="gray")
-        if mask.isColor:
-            plt.imshow(similar)
-        else:
-            plt.imshow(similar, cmap="gray")
-        # plt.savefig("testfigure.png")
+        plt.imshow(canvas)
         plt.show()
     else:
-        if mask.isColor:
-            canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1], 3), dtype="uint8")
-        else:
-            canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1]), dtype="uint8")
-
-        canvas[:, 0:img.shape[1]] = img
-        canvas[:, img.shape[1]:img.shape[1]+dst.shape[1]] = dst
-        canvas[:, img.shape[1]+dst.shape[1]::] = similar
 
         window = "Original | EigenReconstruct | Most Similar"
         cv2.namedWindow(window)
         cv2.imshow(window, canvas)
         cv2.waitKey()
         cv2.destroyWindow(window)
-
 
 
 if __name__ == "__main__":
