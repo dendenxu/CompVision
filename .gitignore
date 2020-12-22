@@ -404,8 +404,8 @@ FodyWeavers.xsd
 
 # macOS
 .DS_Store
-*.zip
+# *.zip
 
 # large model
-*/model.npz.*
-*/model.npz
+# */model.npz.*
+# */model.npz

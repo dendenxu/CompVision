@@ -11,6 +11,7 @@ import scipy.sparse.linalg as sla
 import scipy.linalg as la
 import sys
 import json
+import math
 
 log = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
@@ -456,3 +457,39 @@ class EigenFace:
     @staticmethod
     def normalizeFace(mean: np.ndarray) -> np.ndarray:
         return ((mean-np.min(mean)) * 255 / (np.max(mean)-np.min(mean))).astype("uint8")
+
+    def getCanvas(self, rows=None, cols=None) -> np.ndarray:
+        assert self.eigenFaces is not None
+        # get a canvas for previewing the eigenfaces
+        faces = self.eigenFaces
+        if rows is None or cols is None:
+            faceCount = faces.shape[0]
+            rows = int(math.sqrt(faceCount))  # truncating
+            cols = faceCount // rows
+            while rows*cols < faceCount:
+                cols += 1
+            # has to be enough
+        else:
+            faceCount = rows * cols
+        log.info(f"Getting canvas for rows: {rows}, cols: {cols}, faceCount: {faceCount}")
+
+        if self.isColor:
+            canvas = np.zeros((rows * faces.shape[1], cols * faces.shape[2], 3), dtype="uint8")
+        else:
+            canvas = np.zeros((rows * faces.shape[1], cols * faces.shape[2]), dtype="uint8")
+
+        for index in range(faceCount):
+            i = index // cols
+            j = index % cols
+            canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = self.normalizeFace(faces[index])
+            log.info(f"Filling EigenFace of {index} at {i}, {j}")
+
+        return canvas
+
+    def getMeanFace(self) -> np.ndarray:
+        faces = self.eigenFaces
+        mean = np.mean(faces, 0)
+        mean = np.squeeze(mean)
+        mean = self.normalizeFace(mean)
+        log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
+        return mean

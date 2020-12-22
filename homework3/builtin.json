@@ -9,7 +9,7 @@
         324,
         188
     ],
-    "isColor": true,
+    "isColor": false,
     "nEigenFaces": 1000,
     "targetPercentage": null,
     "useBuiltin": true,
