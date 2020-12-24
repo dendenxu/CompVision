@@ -3,7 +3,10 @@
 # python train.py "Caltec Database -faces" .jpg .txt builtin.json model.color.npz
 # python train.py "BioFace Database/BioID-FaceDatabase-V1.2" .pgm .eye builtin.json model.grayscale.npz
 from eigenface import *
-from faces import *
+from utils import *
+import argparse
+log = logging.getLogger(__name__)
+coloredlogs.install(level="INFO")
 
 
 def help():
@@ -28,22 +31,7 @@ else the final model would be <modelName>.npz
 """)
 
 
-def train():
-    path = "./BioFace Database/BioID-FaceDatabase-V1.2"
-    imgext = ".pgm"
-    txtext = ".eye"
-    config = "default.json"
-    modelName = "model.npz"
-    if len(sys.argv) > 1:
-        path = sys.argv[1]  # the first arg should be the path
-    if len(sys.argv) > 2:
-        imgext = sys.argv[2]  # the second arg should be image extension
-    if len(sys.argv) > 3:
-        txtext = sys.argv[3]  # the third should be the eyes position's text file's ext
-    if len(sys.argv) > 4:
-        config = sys.argv[4]
-    if len(sys.argv) > 5:
-        modelName = sys.argv[5]
+def train(path, imgext, txtext, config, modelName):
     mask = EigenFaceUtils()
     mask.loadConfig(config)
     mask.train(path, imgext, txtext, modelName)
@@ -51,5 +39,17 @@ def train():
 
 
 if __name__ == "__main__":
-    help()
-    train()
+    parser = argparse.ArgumentParser(description="""
+We're assuming a <imageFileNameNoExt>.txt for eye position like
+474 247 607 245
+Comment line starting with # will be omitted
+Or we'll use OpenCV's haarcascade detector to try locating eyes' positions
+""", formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("-p", "--path", default="Caltec Database -faces", help="The image we want to reconstruct and recognize on")
+    parser.add_argument("-i", "--imgext", default=".jpg", help="The image we want to reconstruct and recognize on")
+    parser.add_argument("-t", "--txtext", default=".txt", help="The image we want to reconstruct and recognize on")
+    parser.add_argument("-c", "--config", default="builtin.json", help="The configuration file for the eigenface utility instance")
+    parser.add_argument("-m", "--model", default="model.color.npz", help="The model trained with this eigenface utility")
+
+    args = parser.parse_args()
+    train(args.path, args.imgext, args.txtext, args.config, args.model)
