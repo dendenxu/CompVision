@@ -45,21 +45,23 @@ def test():
     log.info(f"Loading image: {imgname}")
     img = mask.getImage(imgname)
 
-    mask.recognize(img)
+    dst, eigen, face, ori = mask.reconstruct(img)
 
-    dst, similar = mask.reconstruct(img)
-    dst = mask.normalizeFace(dst)
-    similar = mask.normalizeFace(similar)
+    # ori = mask.normalizeFace(ori)
 
     cv2.imwrite("testresult.png", dst)
+    w = mask.w
+    h = mask.h
     if mask.isColor:
-        canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1], 3), dtype="uint8")
+        canvas = np.zeros((h, 5*w, 3), dtype="uint8")
     else:
-        canvas = np.zeros((img.shape[0], img.shape[1]+dst.shape[1]+similar.shape[1]), dtype="uint8")
+        canvas = np.zeros((h, 5*w), dtype="uint8")
 
-    canvas[:, 0:img.shape[1]] = img
-    canvas[:, img.shape[1]:img.shape[1]+dst.shape[1]] = dst
-    canvas[:, img.shape[1]+dst.shape[1]::] = similar
+    canvas[:, 0*w:1*w] = img
+    canvas[:, 1*w:2*w] = dst
+    canvas[:, 2*w:3*w] = eigen
+    canvas[:, 3*w:4*w] = face
+    canvas[:, 4*w:5*w] = ori
 
     cv2.imwrite("similar.png", canvas)
 

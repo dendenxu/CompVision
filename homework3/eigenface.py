@@ -32,10 +32,10 @@ class EigenFace:
     def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=None, targetPercentage=None, useBuiltin=False, useHighgui=True):
         # # at least one of them should be provided
         # assert nEigenFaces is not None or targetPercentage is not None
-        self.width = width
-        self.height = height
-        self.left = left  # x, y
-        self.right = right  # x, y
+        self.w = width
+        self.h = height
+        self.l = left  # x, y
+        self.r = right  # x, y
         self.face_cascade = None
         self.eye_cascade = None
         self.eyesDict = {}
@@ -50,7 +50,7 @@ class EigenFace:
         self.targetPercentage = targetPercentage
         self.useBuiltin = useBuiltin
         self.useHighgui = useHighgui
-        self.names = None
+        self.pathList = None
         self.faceDict = {}
         # ! cannot be pickled, rememeber to delete after loading
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
@@ -58,7 +58,7 @@ class EigenFace:
 
     def alignFace(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
         faceVect = left - right
-        maskVect = self.left - self.right
+        maskVect = self.l - self.r
         log.info(f"Getting faceVect: {faceVect} and maskVect: {maskVect}")
         faceNorm = np.linalg.norm(faceVect)
         maskNorm = np.linalg.norm(maskVect)
@@ -70,7 +70,7 @@ class EigenFace:
         angle = maskAngle - faceAngle
         log.info(f"Should rotate the image: {maskAngle} - {faceAngle} = {angle} degrees")
         faceCenter = (left+right)/2
-        maskCenter = (self.left+self.right) / 2
+        maskCenter = (self.l+self.r) / 2
         log.info(f"Getting faceCenter: {faceCenter} and maskCenter: {maskCenter}")
         translation = maskCenter - faceCenter
         log.info(f"Should translate the image using: {translation}")
@@ -78,15 +78,15 @@ class EigenFace:
         if scale > 1:
             M = np.array([[1, 0, translation[0]],
                           [0, 1, translation[1]]])
-            face = cv2.warpAffine(face, M, (self.width, self.height))
+            face = cv2.warpAffine(face, M, (self.w, self.h))
             M = cv2.getRotationMatrix2D(tuple(maskCenter), angle, scale)
-            face = cv2.warpAffine(face, M, (self.width, self.height))
+            face = cv2.warpAffine(face, M, (self.w, self.h))
         else:
             M = cv2.getRotationMatrix2D(tuple(faceCenter), angle, scale)
             face = cv2.warpAffine(face, M, (face.shape[1], face.shape[0]))
             M = np.array([[1, 0, translation[0]],
                           [0, 1, translation[1]]])
-            face = cv2.warpAffine(face, M, (self.width, self.height))
+            face = cv2.warpAffine(face, M, (self.w, self.h))
         return face
 
     def detectFace(self, gray: np.ndarray) -> np.ndarray:
@@ -104,7 +104,7 @@ class EigenFace:
 
     @property
     def grayLen(self):
-        return self.width*self.height
+        return self.w*self.h
 
     @property
     def colorLen(self):
@@ -173,9 +173,9 @@ class EigenFace:
         if not manual_check:
             coloredlogs.set_level("WARNING")
 
-        self.names = os.listdir(path)
-        self.names = [os.path.join(path, name) for name in self.names if name.endswith(ext)]
-        names = self.names
+        self.pathList = os.listdir(path)
+        self.pathList = [os.path.join(path, name) for name in self.pathList if name.endswith(ext)]
+        names = self.pathList
         if not append:
             if self.isColor:
                 self.batch = np.ndarray((0, self.colorLen))  # assuming color
@@ -271,33 +271,6 @@ class EigenFace:
 
         return self.eigenValues, self.eigenVectors
 
-    def reconstruct(self, img: np.ndarray) -> np.ndarray:
-        assert self.eigenVectors is not None and self.mean is not None
-
-        result = self.unflatten(self.mean)  # mean face
-        flat = img.flatten().astype("float64")  # loaded image with double type
-        flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
-        flat -= self.mean  # flatten subtracted with mean face
-        flat = np.transpose(flat)  # (width * height * color) * 1
-        log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
-
-        # nEigenFace *(width * height * color) matmal (width * height * color) * 1
-        weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
-
-        similarFace = self.unflatten(self.eigenVectors[np.argmax(weights)])
-
-        # luckily, transpose of eigenvector is its inversion
-        # Eigenvectors of real symmetric matrices are orthogonal
-        # ! the magic happens here
-        # data has been lost because nEigenFaces is much smaller than the image dimension span
-        # which is width * height * color
-        # but because we're using PCA (principal components), most of the information will still be retained
-        flat = np.matmul(np.transpose(self.eigenVectors), weights)  # restored
-        log.info(f"Shape of flat: {flat.shape}")
-        flat = np.transpose(flat)
-        result += self.unflatten(flat)
-        return result, similarFace
-
     def getMean(self):
         assert self.batch is not None
         # get the mean values of all the vectorized faces
@@ -314,11 +287,11 @@ class EigenFace:
         if length == self.grayLen:
             if self.isColor:
                 log.warning("You're reshaping a grayscale image when color is wanted")
-            return np.reshape(flat, (self.height, self.width))
+            return np.reshape(flat, (self.h, self.w))
         elif length == self.colorLen:
             if not self.isColor:
                 log.warning("You're reshaping a color image when grayscale is wanted")
-            return np.reshape(flat, (self.height, self.width, 3))
+            return np.reshape(flat, (self.h, self.w, 3))
         else:
             raise EigenFaceException(f"Unsupported flat array of length: {length}, should provide {self.grayLen} or {self.colorLen}")
 
@@ -435,10 +408,10 @@ class EigenFace:
         with open(filename, "rb") as f:
             data = json.load(f)
         log.info(f"Loading configuration from {filename}, with content: {data}")
-        self.width = data["width"]
-        self.height = data["height"]
-        self.left = np.array(data["left"])
-        self.right = np.array(data["right"])
+        self.w = data["width"]
+        self.h = data["height"]
+        self.l = np.array(data["left"])
+        self.r = np.array(data["right"])
         self.isColor = data["isColor"]
         self.nEigenFaces = data["nEigenFaces"]
 
@@ -460,10 +433,10 @@ class EigenFace:
 
     def saveConfig(self, filename):
         data = {}
-        data["width"] = self.width
-        data["height"] = self.height
-        data["left"] = self.left.tolist()
-        data["right"] = self.right.tolist()
+        data["width"] = self.w
+        data["height"] = self.h
+        data["left"] = self.l.tolist()
+        data["right"] = self.r.tolist()
         data["isColor"] = self.isColor
         data["nEigenFaces"] = self.nEigenFaces
         data["targetPercentage"] = self.targetPercentage
@@ -517,11 +490,11 @@ class EigenFace:
 
     def getFaceDict(self):
         # compute the face dictionary
-        assert self.names is not None and self.batch is not None and self.eigenVectors is not None
+        assert self.pathList is not None and self.batch is not None and self.eigenVectors is not None
         # note that names and vectors in self.batch are linked through index
-        assert len(self.names) == self.batch.shape[0], f"{len(self.names)} != {self.batch.shape[0]}"
-        for index in tqdm(range(len(self.names)), "FaceDict"):
-            name = self.names[index]
+        assert len(self.pathList) == self.batch.shape[0], f"{len(self.pathList)} != {self.batch.shape[0]}"
+        for index in tqdm(range(len(self.pathList)), "FaceDict"):
+            name = self.pathList[index]
             flat = self.batch[index]
             flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
             flat = np.transpose(flat)  # (width * height * color) * 1
@@ -533,12 +506,10 @@ class EigenFace:
 
         log.info(f"Got face dict of length {len(self.faceDict)}")
 
-    def recognize(self, img):
+    def reconstruct(self, img: np.ndarray) -> np.ndarray:
         assert self.eigenVectors is not None and self.mean is not None
-        assert len(self.faceDict) != 0
 
-        result = self.unflatten(self.mean)  # mean face
-
+        dst = self.unflatten(self.mean).copy()  # mean face
         flat = img.flatten().astype("float64")  # loaded image with double type
         flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
         flat -= self.mean  # flatten subtracted with mean face
@@ -548,6 +519,10 @@ class EigenFace:
         # nEigenFace *(width * height * color) matmal (width * height * color) * 1
         weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
 
+        # getting the most similar eigenface
+        eigen = self.unflatten(self.eigenVectors[np.argmax(weights)])
+
+        # getting the most similar face in the database
         minDist = Infinity
         minName = ""
         for name in tqdm(self.faceDict.keys(), "Recognizing"):
@@ -559,3 +534,31 @@ class EigenFace:
                 minName = name
 
         log.info(f"MOST SIMILAR FACE: {minName} WITH RESULT {minDist}")
+        face = self.unflatten(self.mean).copy()  # mean face
+        faceFlat = np.matmul(np.transpose(self.eigenVectors), self.faceDict[minName])  # restored
+        faceFlat = np.transpose(faceFlat)
+        face += self.unflatten(faceFlat)
+
+        # luckily, transpose of eigenvector is its inversion
+        # Eigenvectors of real symmetric matrices are orthogonal
+        # ! the magic happens here
+        # data has been lost because nEigenFaces is much smaller than the image dimension span
+        # which is width * height * color
+        # but because we're using PCA (principal components), most of the information will still be retained
+        flat = np.matmul(np.transpose(self.eigenVectors), weights)  # restored
+        log.info(f"Shape of flat: {flat.shape}")
+        flat = np.transpose(flat)
+        dst += self.unflatten(flat)
+        if self.isColor:
+            ori = np.zeros((self.h, self.w, 3))
+        else:
+            ori = np.zeros((self.h, self.w))
+        try:
+            ori = self.getImage(minName)
+            log.info(f"Successfully loaded the original image: {minName}")
+        except FileNotFoundError as e:
+            log.error(e)
+        dst = self.normalizeFace(dst)
+        eigen = self.normalizeFace(eigen)
+        face = self.normalizeFace(face)
+        return dst, eigen, face, ori
