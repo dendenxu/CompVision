@@ -44,7 +44,7 @@ def train():
         config = sys.argv[4]
     if len(sys.argv) > 5:
         modelName = sys.argv[5]
-    mask = EigenFace()
+    mask = EigenFaceUtils()
     mask.loadConfig(config)
     mask.train(path, imgext, txtext, modelName)
     faces(config, modelName, mask)

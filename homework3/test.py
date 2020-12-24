@@ -2,7 +2,6 @@
 # python test.py image_0318.jpg model.npz builtin.json
 from eigenface import *
 
-
 def help():
     log.info("""
 Usage:
@@ -34,17 +33,11 @@ def test():
         config = sys.argv[3]
 
     # instantiate new eigenface class
-    mask = EigenFace()
+    mask = EigenFaceUtils()
     mask.loadConfig(config)
     # load previous eigenvectors/mean value
     mask.loadModel(modelName)
-    txtname = f"{os.path.splitext(imgname)[0]}.txt"
-    if os.path.isfile(txtname):
-        mask.getDictEntry(txtname)
-
-    log.info(f"Loading image: {imgname}")
-    img = mask.getImage(imgname)
-
+    img = mask.getImageFull(imgname)
     dst, eigen, face, ori = mask.reconstruct(img)
 
     # ori = mask.normalizeFace(ori)

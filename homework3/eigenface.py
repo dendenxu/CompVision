@@ -27,7 +27,7 @@ class EigenFaceException(Exception):
         self.errors = errors
 
 
-class EigenFace:
+class EigenFaceUtils:
     # desired face mask values to be used
     def __init__(self, width=128, height=128, left=np.array([48, 48]), right=np.array([80, 48]), isColor=False, nEigenFaces=None, targetPercentage=None, useBuiltin=False, useHighgui=True):
         # # at least one of them should be provided
@@ -38,7 +38,7 @@ class EigenFace:
         self.r = right  # x, y
         self.face_cascade = None
         self.eye_cascade = None
-        self.eyesDict = {}
+        self.eyeDict = {}
         self.batch = None  # samples
         self.covar = None  # covariances
         self.eigenValues = None
@@ -56,7 +56,7 @@ class EigenFace:
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
 
-    def alignFace(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
+    def alignFace2Mask(self, face: np.ndarray, left: np.ndarray, right: np.ndarray) -> np.ndarray:
         faceVect = left - right
         maskVect = self.l - self.r
         log.info(f"Getting faceVect: {faceVect} and maskVect: {maskVect}")
@@ -89,7 +89,7 @@ class EigenFace:
             face = cv2.warpAffine(face, M, (self.w, self.h))
         return face
 
-    def detectFace(self, gray: np.ndarray) -> np.ndarray:
+    def detectFacesEyes(self, gray: np.ndarray) -> np.ndarray:
         faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
         eyes = np.ndarray((0, 2))
         # assuming only one face here
@@ -127,15 +127,15 @@ class EigenFace:
     def getEyes(self, name, img=None):
         name = os.path.basename(name)  # get file name
         name = os.path.splitext(name)[0]  # without ext
-        if not name in self.eyesDict:
+        if not name in self.eyeDict:
             # cannot find the already processed data in dict
             if self.isColor:
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             else:
                 gray = img
-            return self.detectFace(gray)[1]  # we only need the eyes
+            return self.detectFacesEyes(gray)[1]  # we only need the eyes
         else:
-            return self.eyesDict[name]
+            return self.eyeDict[name]
 
     def getImage(self, name, manual_check=False) -> np.ndarray:
         # the load the image accordingly
@@ -152,7 +152,7 @@ class EigenFace:
             raise EigenFaceException("Bad image")
 
         # align according to eye position
-        dst = self.alignFace(img, eyes[0], eyes[1])
+        dst = self.alignFace2Mask(img, eyes[0], eyes[1])
 
         # hist equalization
         if self.isColor:
@@ -167,7 +167,15 @@ class EigenFace:
             cv2.destroyWindow(name)
         return dst
 
-    def getBatch(self, path="./", ext=".jpg", manual_check=False, append=False) -> np.ndarray:
+    def getImageFull(self, imgname) -> np.ndarray:
+        txtname = f"{os.path.splitext(imgname)[0]}.txt"
+        if os.path.isfile(txtname):
+            self.updateEyeDictEntry(txtname)
+
+        log.info(f"Loading image: {imgname}")
+        return self.getImage(imgname)
+
+    def updateBatchData(self, path="./", ext=".jpg", manual_check=False, append=False) -> np.ndarray:
         # adjust logging level to be quite or not
         prevLevel = coloredlogs.get_level()
         if not manual_check:
@@ -198,7 +206,7 @@ class EigenFace:
         log.info(f"Getting {len(names)} names and {self.batch.shape[0]} batch")
         return self.batch
 
-    def getDict(self, path="./", ext=".eye", manual_check=False) -> dict:
+    def updateEyeDict(self, path="./", ext=".eye", manual_check=False) -> dict:
         prevLevel = coloredlogs.get_level()
         if not manual_check:
             coloredlogs.set_level("WARNING")
@@ -208,13 +216,13 @@ class EigenFace:
         log.info(f"Good names: {names}")
         for name in names:
             # iterate through all txt files
-            self.getDictEntry(name)
+            self.updateEyeDictEntry(name)
 
         # restore the logging level
         coloredlogs.set_level(prevLevel)
-        return self.eyesDict
+        return self.eyeDict
 
-    def getDictEntry(self, name):
+    def updateEyeDictEntry(self, name):
         with open(name, "r") as f:
             lines = f.readlines()
             log.info(f"Processing: {name}")
@@ -228,13 +236,14 @@ class EigenFace:
                 name = os.path.basename(name)  # get file name
                 name = os.path.splitext(name)[0]  # without ext
                 if len(coords) == 4:
-                    self.eyesDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
-                    order = np.argsort(self.eyesDict[name][:, 0])  # sort by first column, which is x
-                    self.eyesDict[name] = self.eyesDict[name][order]
+                    self.eyeDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
+                    order = np.argsort(self.eyeDict[name][:, 0])  # sort by first column, which is x
+                    self.eyeDict[name] = self.eyeDict[name][order]
                 else:
                     log.error(f"Wrong format for file: {name}, at line: {line}")
+        return self.eyeDict[name]
 
-    def getCovarMatrix(self) -> np.ndarray:
+    def updateCovarMatrix(self) -> np.ndarray:
         assert self.batch is not None and self.mean is not None
         log.info(f"Trying to compute the covariance matrix")
         # covariance matrix of all the pixel location: width * height * color
@@ -243,7 +252,7 @@ class EigenFace:
         log.info(f"Getting covariance matrix:\n{self.covar}")
         return self.covar
 
-    def getEigen(self) -> np.ndarray:
+    def updateEigenVs(self) -> np.ndarray:
         assert self.covar is not None
 
         if self.targetPercentage is not None:
@@ -251,7 +260,7 @@ class EigenFace:
             self.eigenValues = la.eigvalsh(self.covar)
             self.eigenValues = np.sort(self.eigenValues)[::-1]  # this should be sorted
             log.info(f"Getting all eigenvalues:\n{self.eigenValues}\nof shape: {self.eigenValues.shape}")
-            self.getnEigenFaces()
+            self.updatenEigenFaces()
 
         log.info(f"Begin computing {self.nEigenFaces} eigenvalues/eigenvectors")
         self.eigenValues, self.eigenVectors = sla.eigen.eigsh(self.covar, k=self.nEigenFaces)
@@ -271,7 +280,7 @@ class EigenFace:
 
         return self.eigenValues, self.eigenVectors
 
-    def getMean(self):
+    def updateMean(self):
         assert self.batch is not None
         # get the mean values of all the vectorized faces
         self.mean = np.reshape(np.mean(self.batch, 0), (1, -1))
@@ -300,7 +309,7 @@ class EigenFace:
         img = self.unflatten(flat)
         return img.astype("uint8")
 
-    def getnEigenFaces(self):
+    def updatenEigenFaces(self) -> int:
         assert self.eigenValues is not None
         # get energy
         self.nEigenFaces = len(self.eigenValues)
@@ -313,16 +322,18 @@ class EigenFace:
                 log.info(f"For a energy percentage of {self.targetPercentage}, we need {self.nEigenFaces} vectors from {len(self.eigenValues)}")
                 break  # current index should be nEigenFaces
 
+        return self.nEigenFaces
+
     def train(self, path, imgext, txtext, modelName="model.npz"):
-        self.getDict(path, txtext)
-        self.getBatch(path, imgext)
+        self.updateEyeDict(path, txtext)
+        self.updateBatchData(path, imgext)
         if self.useBuiltin:
             if self.targetPercentage is not None:
                 log.info(f"Beginning builtin PCACompute2 for all eigenvalues/eigenvectors")
                 # ! this is bad, we'll have to compute all eigenvalues/eigenvectors to determine energy percentage
                 self.mean, self.eigenVectors, self.eigenValues = cv2.PCACompute2(self.batch, None)
                 log.info(f"Getting eigenvalues/eigenvectors: {self.eigenValues}, {self.eigenVectors}")
-                self.getnEigenFaces()
+                self.updatenEigenFaces()
                 # ! dangerous, losing smaller eigenvectors (eigenvalues is small)
                 self.eigenVectors = self.eigenVectors[0:self.nEigenFaces]
             else:
@@ -331,11 +342,11 @@ class EigenFace:
             log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
             log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
         else:
-            self.getMean()
-            self.getCovarMatrix()
-            self.getEigen()
+            self.updateMean()
+            self.updateCovarMatrix()
+            self.updateEigenVs()
 
-        self.getFaceDict()
+        self.updateFaceDict()
         self.saveModel(modelName)
 
     def loadModel(self, modelName):
@@ -364,7 +375,7 @@ class EigenFace:
         log.info(f"Model: {modelName} saved")
 
     # ! unused
-    def getEigenFaces(self) -> np.ndarray:
+    def updateEigenFaces(self) -> np.ndarray:
         assert self.eigenVectors is not None
         log.info(f"Computing eigenfaces")
         self.eigenFaces = np.array([self.unflatten(vector) for vector in self.eigenVectors])
@@ -378,7 +389,7 @@ class EigenFace:
         '''
         return [random.randint(0, 256) for _ in range(3)]
 
-    def getCovarMatrixSlow(self) -> np.ndarray:
+    def updateCovarMatrixSlow(self) -> np.ndarray:
         assert self.batch is not None, "Should get sample batch before computing covariance matrix"
         nSamples = self.batch.shape[0]
         self.covar = np.zeros((nSamples, nSamples))
@@ -448,10 +459,10 @@ class EigenFace:
             json.dump(data, f)
 
     @staticmethod
-    def normalizeFace(mean: np.ndarray) -> np.ndarray:
+    def normalizeImg(mean: np.ndarray) -> np.ndarray:
         return ((mean-np.min(mean)) * 255 / (np.max(mean)-np.min(mean))).astype("uint8")
 
-    def getCanvas(self, rows=None, cols=None) -> np.ndarray:
+    def drawEigenFaces(self, rows=None, cols=None) -> np.ndarray:
         assert self.eigenFaces is not None
         # get a canvas for previewing the eigenfaces
         faces = self.eigenFaces
@@ -474,7 +485,7 @@ class EigenFace:
         for index in range(faceCount):
             i = index // cols
             j = index % cols
-            canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = self.normalizeFace(faces[index])
+            canvas[i * faces.shape[1]:(i+1)*faces.shape[1], j * faces.shape[2]:(j+1)*faces.shape[2]] = self.normalizeImg(faces[index])
             log.info(f"Filling EigenFace of {index} at {i}, {j}")
 
         return canvas
@@ -484,11 +495,11 @@ class EigenFace:
         faces = self.eigenFaces
         mean = np.mean(faces, 0)
         mean = np.squeeze(mean)
-        mean = self.normalizeFace(mean)
+        mean = self.normalizeImg(mean)
         log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
         return mean
 
-    def getFaceDict(self):
+    def updateFaceDict(self) -> dict:
         # compute the face dictionary
         assert self.pathList is not None and self.batch is not None and self.eigenVectors is not None
         # note that names and vectors in self.batch are linked through index
@@ -505,6 +516,8 @@ class EigenFace:
             self.faceDict[name] = weights
 
         log.info(f"Got face dict of length {len(self.faceDict)}")
+
+        return self.faceDict
 
     def reconstruct(self, img: np.ndarray) -> np.ndarray:
         assert self.eigenVectors is not None and self.mean is not None
@@ -558,7 +571,7 @@ class EigenFace:
             log.info(f"Successfully loaded the original image: {minName}")
         except FileNotFoundError as e:
             log.error(e)
-        dst = self.normalizeFace(dst)
-        eigen = self.normalizeFace(eigen)
-        face = self.normalizeFace(face)
+        dst = self.normalizeImg(dst)
+        eigen = self.normalizeImg(eigen)
+        face = self.normalizeImg(face)
         return dst, eigen, face, ori

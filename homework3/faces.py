@@ -6,12 +6,12 @@ def faces(config, modelName, mask=None):
 
     if mask is None:
         # instantiate new eigenface class
-        mask = EigenFace()
+        mask = EigenFaceUtils()
         mask.loadConfig(config)
         # load previous eigenvectors/mean value
         mask.loadModel(modelName)
 
-    mask.getEigenFaces()
+    mask.updateEigenFaces()
 
     mean = mask.getMeanFace()
     cv2.imwrite("eigenmean.png", mean)
@@ -20,7 +20,7 @@ def faces(config, modelName, mask=None):
     rows = 3
     cols = 4
     faceCount = rows * cols
-    canvas = mask.getCanvas(rows, cols)
+    canvas = mask.drawEigenFaces(rows, cols)
     cv2.imwrite("eigenfaces.png", canvas)
 
     # # ! dangerous, the file might get extremely large
