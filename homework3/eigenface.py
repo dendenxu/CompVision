@@ -181,7 +181,8 @@ class EigenFace:
                 self.batch = np.ndarray((0, self.colorLen))  # assuming color
             else:
                 self.batch = np.ndarray((0, self.grayLen))
-        for name in tqdm(names, desc="Processing batch"):
+        bads = []
+        for index, name in tqdm(enumerate(names), desc="Processing batch"):
             try:
                 dst = self.getImage(name, manual_check)
                 flat = dst.flatten()
@@ -189,9 +190,12 @@ class EigenFace:
                 self.batch = np.concatenate([self.batch, flat])
             except EigenFaceException as e:
                 log.warning(e)
+                bads.append(index)
+        for bad in bads[::-1]:
+            del names[bad]
 
         coloredlogs.set_level(prevLevel)
-
+        log.info(f"Getting {len(names)} names and {self.batch.shape[0]} batch")
         return self.batch
 
     def getDict(self, path="./", ext=".eye", manual_check=False) -> dict:
@@ -365,12 +369,21 @@ class EigenFace:
         # load previous eigenvectors/mean value
         log.info(f"Loading model: {modelName}")
         data = np.load(modelName, allow_pickle=True)
-        self.eigenVectors = data["arr_0"]
-        self.mean = data["arr_1"]
-        self.faceDict = data["arr_2"].item()
+        try:
+            self.eigenVectors = data["arr_0"]
+        except KeyError as e:
+            log.error(f"Cannot load eigenvectors, {e}")
+        try:
+            self.mean = data["arr_1"]
+        except KeyError as e:
+            log.error(f"Cannot load mean face data, {e}")
+        try:
+            self.faceDict = data["arr_2"].item()
+        except KeyError as e:
+            log.error(f"Cannot load face dict, {e}")
         log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
         log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
-        log.info(f"Getting face dict {self.faceDict} of length: {len(self.faceDict)}")
+        log.info(f"Getting face dict of length: {len(self.faceDict)}")
 
     def saveModel(self, modelName):
         log.info(f"Saving model: {modelName}")
@@ -506,19 +519,19 @@ class EigenFace:
         # compute the face dictionary
         assert self.names is not None and self.batch is not None and self.eigenVectors is not None
         # note that names and vectors in self.batch are linked through index
-        assert len(self.names) == self.batch.shape[0]
-        for index in range(len(self.names)):
+        assert len(self.names) == self.batch.shape[0], f"{len(self.names)} != {self.batch.shape[0]}"
+        for index in tqdm(range(len(self.names)), "FaceDict"):
             name = self.names[index]
             flat = self.batch[index]
             flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
             flat = np.transpose(flat)  # (width * height * color) * 1
-            log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
+            # log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
 
             # nEigenFace *(width * height * color) matmal (width * height * color) * 1
             weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
             self.faceDict[name] = weights
 
-        log.info(f"Got face dict {self.faceDict} of length {len(self.faceDict)}")
+        log.info(f"Got face dict of length {len(self.faceDict)}")
 
     def recognize(self, img):
         assert self.eigenVectors is not None and self.mean is not None
@@ -537,10 +550,10 @@ class EigenFace:
 
         minDist = Infinity
         minName = ""
-        for name in self.faceDict.keys():
+        for name in tqdm(self.faceDict.keys(), "Recognizing"):
             faceWeight = self.faceDict[name]
             dist = la.norm(weights-faceWeight)
-            log.info(f"Getting distance: {dist}, name: {name}")
+            # log.info(f"Getting distance: {dist}, name: {name}")
             if dist < minDist:
                 minDist = dist
                 minName = name

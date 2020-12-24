@@ -1,5 +1,7 @@
 #! python
 # python train.py smallSet .pgm .eye builtin.json
+# python train.py "Caltec Database -faces" .jpg .txt builtin.json model.color.npz
+# python train.py "BioFace Database/BioID-FaceDatabase-V1.2" .pgm .eye builtin.json model.grayscale.npz
 from eigenface import *
 from faces import *
 
@@ -7,7 +9,7 @@ from faces import *
 def help():
     log.info("""
 Usage:
-python test.py [<dataPath> [<imageExt> [<eyesExt> [<configFileName>]]]]
+python test.py [<dataPath> [<imageExt> [<eyesExt> [<configFileName> [modelName]]]]]
 
 We're assuming a <imageFileNameNoExt>.txt for eye position like
 474 247 607 245
@@ -20,6 +22,9 @@ Default parameters are:
     imgext = ".pgm"
     txtext = ".eye"
     config = "./default.json"
+    modelName = "model.npz"
+note that modelName should end with .npz
+else the final model would be <modelName>.npz
 """)
 
 

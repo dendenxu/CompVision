@@ -1,3 +1,4 @@
 alleigenfaces.png
-model.npz
-model.npz.*
+model.*
+# model.npz
+# model.npz.*
