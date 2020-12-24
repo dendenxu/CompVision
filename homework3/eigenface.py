@@ -6,6 +6,7 @@ import random
 import os
 import matplotlib.pyplot as plt
 from numpy.core.fromnumeric import mean
+from numpy.core.numeric import Infinity
 from tqdm import tqdm
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
@@ -49,7 +50,8 @@ class EigenFace:
         self.targetPercentage = targetPercentage
         self.useBuiltin = useBuiltin
         self.useHighgui = useHighgui
-
+        self.names = None
+        self.faceDict = {}
         # ! cannot be pickled, rememeber to delete after loading
         self.face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
         self.eye_cascade = cv2.CascadeClassifier("haarcascade_eye.xml")
@@ -171,8 +173,9 @@ class EigenFace:
         if not manual_check:
             coloredlogs.set_level("WARNING")
 
-        names = os.listdir(path)
-        names = [os.path.join(path, name) for name in names if name.endswith(ext)]
+        self.names = os.listdir(path)
+        self.names = [os.path.join(path, name) for name in self.names if name.endswith(ext)]
+        names = self.names
         if not append:
             if self.isColor:
                 self.batch = np.ndarray((0, self.colorLen))  # assuming color
@@ -354,20 +357,24 @@ class EigenFace:
             self.getMean()
             self.getCovarMatrix()
             self.getEigen()
+
+        self.getFaceDict()
         self.saveModel(modelName)
 
     def loadModel(self, modelName):
         # load previous eigenvectors/mean value
         log.info(f"Loading model: {modelName}")
-        data = np.load(modelName)
+        data = np.load(modelName, allow_pickle=True)
         self.eigenVectors = data["arr_0"]
         self.mean = data["arr_1"]
+        self.faceDict = data["arr_2"].item()
         log.info(f"Getting mean vectorized face: {self.mean} with shape: {self.mean.shape}")
         log.info(f"Getting sorted eigenvectors:\n{self.eigenVectors}\nof shape: {self.eigenVectors.shape}")
+        log.info(f"Getting face dict {self.faceDict} of length: {len(self.faceDict)}")
 
     def saveModel(self, modelName):
         log.info(f"Saving model: {modelName}")
-        np.savez_compressed(modelName, self.eigenVectors, self.mean)
+        np.savez_compressed(modelName, self.eigenVectors, self.mean, self.faceDict)
         log.info(f"Model: {modelName} saved")
 
     # ! unused
@@ -487,9 +494,55 @@ class EigenFace:
         return canvas
 
     def getMeanFace(self) -> np.ndarray:
+        assert self.eigenFaces is not None
         faces = self.eigenFaces
         mean = np.mean(faces, 0)
         mean = np.squeeze(mean)
         mean = self.normalizeFace(mean)
         log.info(f"Getting mean eigenface\n{mean}\nof shape: {mean.shape}")
         return mean
+
+    def getFaceDict(self):
+        # compute the face dictionary
+        assert self.names is not None and self.batch is not None and self.eigenVectors is not None
+        # note that names and vectors in self.batch are linked through index
+        assert len(self.names) == self.batch.shape[0]
+        for index in range(len(self.names)):
+            name = self.names[index]
+            flat = self.batch[index]
+            flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
+            flat = np.transpose(flat)  # (width * height * color) * 1
+            log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
+
+            # nEigenFace *(width * height * color) matmal (width * height * color) * 1
+            weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
+            self.faceDict[name] = weights
+
+        log.info(f"Got face dict {self.faceDict} of length {len(self.faceDict)}")
+
+    def recognize(self, img):
+        assert self.eigenVectors is not None and self.mean is not None
+        assert len(self.faceDict) != 0
+
+        result = self.unflatten(self.mean)  # mean face
+
+        flat = img.flatten().astype("float64")  # loaded image with double type
+        flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
+        flat -= self.mean  # flatten subtracted with mean face
+        flat = np.transpose(flat)  # (width * height * color) * 1
+        log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
+
+        # nEigenFace *(width * height * color) matmal (width * height * color) * 1
+        weights = np.matmul(self.eigenVectors, flat)  # new data, nEigenFace * 1
+
+        minDist = Infinity
+        minName = ""
+        for name in self.faceDict.keys():
+            faceWeight = self.faceDict[name]
+            dist = la.norm(weights-faceWeight)
+            log.info(f"Getting distance: {dist}, name: {name}")
+            if dist < minDist:
+                minDist = dist
+                minName = name
+
+        log.info(f"MOST SIMILAR FACE: {minName} WITH RESULT {minDist}")

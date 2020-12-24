@@ -44,6 +44,9 @@ def test():
 
     log.info(f"Loading image: {imgname}")
     img = mask.getImage(imgname)
+
+    mask.recognize(img)
+
     dst, similar = mask.reconstruct(img)
     dst = mask.normalizeFace(dst)
     similar = mask.normalizeFace(similar)
