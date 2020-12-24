@@ -561,4 +561,4 @@ class EigenFace:
         dst = self.normalizeFace(dst)
         eigen = self.normalizeFace(eigen)
         face = self.normalizeFace(face)
-        return dst, eigen, face, ori
+        return dst, eigen, face, ori, minName

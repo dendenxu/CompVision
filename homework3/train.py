@@ -4,6 +4,8 @@
 # python train.py "BioFace Database/BioID-FaceDatabase-V1.2" .pgm .eye builtin.json model.grayscale.npz
 from eigenface import *
 from faces import *
+log = logging.getLogger(__name__)
+coloredlogs.install(level="INFO")
 
 
 def help():
