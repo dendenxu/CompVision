@@ -4,13 +4,10 @@ import logging
 import coloredlogs
 import random
 import os
-import matplotlib.pyplot as plt
-from numpy.core.fromnumeric import mean
 from numpy.core.numeric import Infinity
 from tqdm import tqdm
 import scipy.sparse.linalg as sla
 import scipy.linalg as la
-import sys
 import json
 import math
 
