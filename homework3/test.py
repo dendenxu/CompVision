@@ -18,8 +18,10 @@ def test(imgname, modelName, config, outputName):
     mask.loadModel(modelName)
     txtname = f"{os.path.splitext(imgname)[0]}.txt"
     if os.path.isfile(txtname):
+        log.info("Found text file")
         mask.updateEyeDictEntry(txtname)
-
+    else:
+        log.warning(f"Cannot find eye text file for test: {txtname}")
     log.info(f"Loading image: {imgname}")
     src = mask.getImage(imgname)
     dst, eigen, face, ori, dbImgName = mask.reconstruct(src)

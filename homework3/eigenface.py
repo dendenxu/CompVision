@@ -593,6 +593,9 @@ class EigenFaceUtils:
         else:
             ori = np.zeros((self.h, self.w))
         try:
+            txtname = os.path.splitext(minName)[0]
+            txtname = f"{txtname}.txt"
+            self.updateEyeDictEntry(txtname)
             ori = self.getImage(minName)
             log.info(f"Successfully loaded the original image: {minName}")
         except FileNotFoundError as e:
