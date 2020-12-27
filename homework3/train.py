@@ -1,34 +1,13 @@
 #! python
-# python train.py smallSet .pgm .eye builtin.json
-# python train.py "Caltec Database -faces" .jpg .txt builtin.json model.color.npz
-# python train.py "BioFace Database/BioID-FaceDatabase-V1.2" .pgm .eye builtin.json model.grayscale.npz
+
+# Example:
+# python train.py -p "Caltec Database -faces" -i .jpg -t .txt -c builtin.json -m model.color.npz
+
 from eigenface import *
 from utils import *
 import argparse
 log = logging.getLogger(__name__)
 coloredlogs.install(level="INFO")
-
-
-def help():
-    log.info("""
-Usage:
-python test.py [<dataPath> [<imageExt> [<eyesExt> [<configFileName> [modelName]]]]]
-
-We're assuming a <imageFileNameNoExt>.txt for eye position like
-474 247 607 245
-Comment line starting with # will be omitted
-Or we'll use OpenCV's haarcascade detector to try locating eyes' positions
-""")
-    log.info("""
-Default parameters are:
-    path = "./BioFace Database/BioID-FaceDatabase-V1.2"
-    imgext = ".pgm"
-    txtext = ".eye"
-    config = "./default.json"
-    modelName = "model.npz"
-note that modelName should end with .npz
-else the final model would be <modelName>.npz
-""")
 
 
 def train(path, imgext, txtext, config, modelName):
@@ -45,9 +24,9 @@ We're assuming a <imageFileNameNoExt>.txt for eye position like
 Comment line starting with # will be omitted
 Or we'll use OpenCV's haarcascade detector to try locating eyes' positions
 """, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("-p", "--path", default="Caltec Database -faces", help="The image we want to reconstruct and recognize on")
-    parser.add_argument("-i", "--imgext", default=".jpg", help="The image we want to reconstruct and recognize on")
-    parser.add_argument("-t", "--txtext", default=".txt", help="The image we want to reconstruct and recognize on")
+    parser.add_argument("-p", "--path", default="Caltec Database -faces", help="The path of the data, we're assuming that all files are under this directory")
+    parser.add_argument("-i", "--imgext", default=".jpg", help="The extension of the image file like .jpg, .png or even .pgm")
+    parser.add_argument("-t", "--txtext", default=".txt", help="The text file extension we want to read eye positions off from, usually .txt. But others will work too")
     parser.add_argument("-c", "--config", default="builtin.json", help="The configuration file for the eigenface utility instance")
     parser.add_argument("-m", "--model", default="model.color.npz", help="The model trained with this eigenface utility")
 

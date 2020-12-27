@@ -29,18 +29,7 @@ def faces(config, modelName, mask=None):
 
     # !should we?
     if not mask.useHighgui:
-        # plt.figure(figsize=(10, 10))
-        if mask.isColor:
-            plt.imshow(mean[:, :, ::-1])  # double imshow
-        else:
-            plt.imshow(mean, cmap="gray")
-        # plt.savefig("eigenmeanfigure.png")
-        plt.show()
-        if mask.isColor:
-            plt.imshow(canvas)
-        else:
-            plt.imshow(canvas, cmap="gray")
-        plt.show()
+        log.error("Only HighGUI of OpenCV is supported.\nOther implementation removed due to regulation.")
     else:
         window = f"Mean EigenFaces of {mask.eigenFaces.shape[0]}"
         cv2.imshow(window, mean)
@@ -50,14 +39,3 @@ def faces(config, modelName, mask=None):
         cv2.imshow(window, canvas)
         cv2.waitKey()
         cv2.destroyWindow(window)
-
-
-if __name__ == "__main__":
-    # command line arguments
-    modelName = "./model.npz"
-    config = "./default.json"
-    if len(sys.argv) > 1:
-        modelName = sys.argv[1]
-    if len(sys.argv) > 2:
-        config = sys.argv[2]
-    faces(config, modelName)

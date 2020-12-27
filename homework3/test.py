@@ -1,5 +1,8 @@
 #! python
+
+# Example:
 # python test.py -i image_0318.jpg -m model.color.npz -c builtin.json -o similar.png
+
 from eigenface import *
 import argparse
 log = logging.getLogger(__name__)
@@ -59,8 +62,7 @@ def test(imgname, modelName, config, outputName):
         log.warning(f"You didn't specify a output file name, the result WILL NOT BE SAVED\nIt's highly recommended to save the result with -o argument since OpenCV can't even draw large window properly...")
 
     if not mask.useHighgui:
-        plt.imshow(canvas)
-        plt.show()
+        log.error("Only HighGUI of OpenCV is supported.\nOther implementation removed due to regulation.")
     else:
 
         window = "Original | EigenReconstruct | Most Similar"
