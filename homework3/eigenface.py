@@ -505,13 +505,14 @@ class EigenFaceUtils:
 
     def updateFaceDict(self) -> dict:
         # compute the face dictionary
-        assert self.pathList is not None and self.batch is not None and self.eigenVectors is not None
+        assert self.pathList is not None and self.batch is not None and self.eigenVectors is not None and self.mean is not None
         # note that names and vectors in self.batch are linked through index
         assert len(self.pathList) == self.batch.shape[0], f"{len(self.pathList)} != {self.batch.shape[0]}"
         for index in tqdm(range(len(self.pathList)), "FaceDict"):
             name = self.pathList[index]
             flat = self.batch[index]
             flat = np.expand_dims(flat, 0)  # viewed as 1 * (width * height * color)
+            flat -= self.mean
             flat = np.transpose(flat)  # (width * height * color) * 1
             # log.info(f"Shape of eigenvectors and flat: {self.eigenVectors.shape}, {flat.shape}")
 
