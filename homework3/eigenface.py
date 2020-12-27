@@ -246,6 +246,9 @@ class EigenFaceUtils:
 
     def updateEyeDictEntry(self, name):
         # update the dictionary but only one entry
+        if not os.path.exists(name):
+            log.warning(f"Cannot find file: {name} to update eye information, falling back to recognizor")
+            return
         with open(name, "r") as f:
             lines = f.readlines()
             log.info(f"Processing: {name}")
@@ -596,8 +599,7 @@ class EigenFaceUtils:
             txtname = os.path.splitext(minName)[0]
             txtname = f"{txtname}.txt"
             self.updateEyeDictEntry(txtname)
-            self.updateEigenFaces()
-            ori = self.getImage(minName) + self.getMeanFace()
+            ori = self.getImage(minName)
             log.info(f"Successfully loaded the original image: {minName}")
         except FileNotFoundError as e:
             log.error(e)
