@@ -596,7 +596,8 @@ class EigenFaceUtils:
             txtname = os.path.splitext(minName)[0]
             txtname = f"{txtname}.txt"
             self.updateEyeDictEntry(txtname)
-            ori = self.getImage(minName)
+            self.updateEigenFaces()
+            ori = self.getImage(minName) + self.getMeanFace()
             log.info(f"Successfully loaded the original image: {minName}")
         except FileNotFoundError as e:
             log.error(e)
