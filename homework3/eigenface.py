@@ -136,8 +136,8 @@ class EigenFaceUtils:
         # then try recognizing the eye
         # ! this function assume you've already loaded the txt files
         # else it will just perform haar cascaded recognition
-        name = os.path.basename(name)  # get file name
-        name = os.path.splitext(name)[0]  # without ext
+        # name = os.path.basename(name)  # get file name
+        # name = os.path.splitext(name)[0]  # without ext
         if not name in self.eyeDict:
             # cannot find the already processed data in dict
             if self.isColor:
@@ -146,6 +146,7 @@ class EigenFaceUtils:
                 gray = img
             eyes = self.detectFacesEyes(gray)[1]  # we only need the eyes
             self.eyeDict[name] = eyes
+            log.info(f"eyeDict updated: {self.eyeDict[name]}")
             return eyes
         else:
             return self.eyeDict[name]
@@ -158,10 +159,13 @@ class EigenFaceUtils:
             img = cv2.imread(name, cv2.IMREAD_GRAYSCALE)
 
         # try getting eye position
-        eyes = self.getEyes(name, img)
+        basename = os.path.basename(name)  # get file name
+        basename = os.path.splitext(basename)[0]  # without ext
+        eyes = self.getEyes(basename, img)
         log.info(f"Getting eyes: {eyes}")
         if not len(eyes) == 2:
             log.warning(f"Cannot get two eyes from this image: {name}, {len(eyes)} eyes")
+            del self.eyeDict[basename]
             raise EigenFaceException("Bad image")
 
         # align according to eye position
@@ -255,7 +259,7 @@ class EigenFaceUtils:
                 name = os.path.basename(name)  # get file name
                 name = os.path.splitext(name)[0]  # without ext
                 if len(coords) == 4:
-                    self.eyeDict[name] = np.reshape(np.array(coords).astype(int), [2, 2])
+                    self.eyeDict[name] = np.reshape(np.array(coords).astype("float64"), [2, 2])
                     order = np.argsort(self.eyeDict[name][:, 0])  # sort by first column, which is x
                     self.eyeDict[name] = self.eyeDict[name][order]
                 else:
