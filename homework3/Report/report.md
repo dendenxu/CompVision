@@ -1295,3 +1295,97 @@ We trained our eigenface model using this setup:
 }
 ```
 
+And we used this command on a Ubuntu machine:
+
+```shell
+./train.py -p "MyDataSet" -i .jpg -t .txt -c builtin.json -m model.MyDataSet512x512x3.npz
+```
+
+with hardware specification:
+
+```
+                          ./+o+-       xzdd@xzdd-ubuntu
+                  yyyyy- -yyyyyy+      OS: Ubuntu 20.04 focal
+               ://+//////-yyyyyyo      Kernel: x86_64 Linux 5.4.0-58-generic
+           .++ .:/++++++/-.+sss/`      Uptime: 3d 13h 49m
+         .:++o:  /++++++++/:--:/-      Packages: 1909
+        o:+o+:++.`..```.-/oo+++++/     Shell: zsh 5.8
+       .:+o:+o/.          `+sssoo+/    Disk: 338G / 670G (54%)
+  .++/+:+oo+o:`             /sssooo.   CPU: Intel Core i7-9700 @ 8x 4.7GHz [34.0°C]
+ /+++//+:`oo+o               /::--:.   GPU: GeForce RTX 2080 Ti
+ \+/+o+++`o++o               ++////.   RAM: 951MiB / 15921MiB
+  .++.o+++oo+:`             /dddhhh.
+       .+.o+oo:.          `oddhhhh+
+        \+.++o+o``-````.:ohdhhhhh+
+         `:o+++ `ohhhhhhhhyo++os:
+           .o:`.syhhhhhhh/.oo++o`
+               /osyyyyyyo++ooo+++/
+                   ````` +oo+++o\:
+                          `oo++.
+```
+
+This is the program loading images and aligning them to our mask.
+
+![image-20201228110414048](report.assets/image-20201228110414048.png)
+
+This is the program computing eigenvectors/eigenvalues using `PCA`
+
+![image-20201228110539550](report.assets/image-20201228110539550.png)
+
+Note that we set `targetPercentage` to `null` so we'll use `nEigenFaces: 1000` to try computing 1000 eigenfaces (possibly 512\*512\*3=786432)
+
+Eventually we can only get 345 eigenfaces:
+
+![image-20201228110813188](report.assets/image-20201228110813188.png)
+
+And this is the program compressing image data using eigenfaces
+
+Then it tries to save the model to the file we specified in the commandline arguments
+
+![image-20201228110907948](report.assets/image-20201228110907948.png)
+
+And this is what happens when no GUI is booted up and we tried to show windows using `cv2.imshow`
+
+![image-20201228111007469](report.assets/image-20201228111007469.png)
+
+Fortunately, we'll save the images to files before loading all of them to the screen.
+
+So if your running on a server without a display, this is the `success` message for our program
+
+Let's checkout the result:
+
+1. We specified a target number of eigenfaces of 1000
+
+    But only 345 valid eigenvalues are computed, this is pretty reasonable
+
+2. After alignment and color histogram equlization, we can get a mean face:
+
+    ![meanface](report.assets/meanface.png)
+
+3. This is the first few eigenfaces:
+
+    ![eigenfaces](report.assets/eigenfaces.png)
+
+    The mean eigenface:
+
+    ![eigenmean](report.assets/eigenmean.png)
+
+    And we'd also generate a file with all the eigenfaces for you to exam:
+
+    But it's a little bit too large to be displayed here:
+
+    ![image-20201228111524745](report.assets/image-20201228111524745.png)
+
+    This is a screenshot:
+
+    ![image-20201228111457095](report.assets/image-20201228111457095.png)
+
+    This is a screenshot of some of the gray blocks:
+
+    ![image-20201228111811414](report.assets/image-20201228111811414.png)
+
+    You can clearly see a face there, but they're not as outstanding as the first few eigenfaces
+
+4. We've got a model of size: `-rw-rw-r-- 1 xzdd xzdd 2.0G Dec 28 11:08  model.MyDataSet512x512x3.npz`
+
+5. 

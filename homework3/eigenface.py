@@ -494,7 +494,7 @@ class EigenFaceUtils:
 
         return canvas
 
-    def getMeanFace(self) -> np.ndarray:
+    def getMeanEigen(self) -> np.ndarray:
         assert self.eigenFaces is not None
         faces = self.eigenFaces
         mean = np.mean(faces, 0)

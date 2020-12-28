@@ -13,7 +13,7 @@ def faces(config, modelName, mask=None):
 
     mask.updateEigenFaces()
 
-    mean = mask.getMeanFace()
+    mean = mask.getMeanEigen()
     cv2.imwrite("eigenmean.png", mean)
 
     # ! Showing only first 12 faces if more is provided
