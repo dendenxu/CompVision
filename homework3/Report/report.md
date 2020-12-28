@@ -1243,6 +1243,55 @@ python test.py -i image_0318.jpg -m model.color.npz -c builtin.json -o similar.p
 
 Our `EigenFaceUtils` can operate on the given dataset and also our own.
 
-We constructed our dataset by labelling the eye position of *Caltec Database* and adding a few of the developers face.
+We constructed our dataset by labelling the eye position of *Caltec Database* and adding a few of the developer‘s face.
 
 It was pretty awkward...
+
+To make our life simplier, we only selected those images in *Caltec Database* that has a recognizable eyes to OpenCV's haar cascade recognizer.
+
+And hand labelled the developer's eyes.
+
+We provided 7 images of the developer, with label:
+
+```python
+"image_xz_0001.jpg", "image_xz_0001.txt"
+"image_xz_0002.jpg", "image_xz_0002.txt"
+"image_xz_0003.jpg", "image_xz_0003.txt"
+"image_xz_0004.jpg", "image_xz_0004.txt"
+"image_xz_0005.jpg", "image_xz_0005.txt"
+"image_xz_0006.jpg", "image_xz_0006.txt"
+"image_xz_0007.jpg", "image_xz_0007.txt"
+```
+
+You can find the dataset in `MyDataSet` directory under the source directory
+
+![image-20201228104959658](report.assets/image-20201228104959658.png)
+
+All other images in this directory are also labelled.
+
+![image-20201228104845657](report.assets/image-20201228104845657.png)
+
+### Experiments And Results
+
+We trained our eigenface model using this setup:
+
+```json
+{
+    "width": 512,
+    "height": 512,
+    "left": [
+        188,
+        188
+    ],
+    "right": [
+        324,
+        188
+    ],
+    "isColor": true,
+    "nEigenFaces": 1000,
+    "targetPercentage": null,
+    "useBuiltin": true,
+    "useHighgui": true
+}
+```
+
