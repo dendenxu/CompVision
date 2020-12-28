@@ -1,0 +1,17 @@
+{
+    "width": 512,
+    "height": 512,
+    "left": [
+        188,
+        188
+    ],
+    "right": [
+        324,
+        188
+    ],
+    "isColor": false,
+    "nEigenFaces": 1000,
+    "targetPercentage": null,
+    "useBuiltin": true,
+    "useHighgui": true
+}
