@@ -1273,6 +1273,8 @@ All other images in this directory are also labelled.
 
 ### Experiments And Results
 
+#### Training
+
 We trained our eigenface model using this setup:
 
 ```json
@@ -1340,6 +1342,8 @@ Eventually we can only get 345 eigenfaces:
 
 And this is the program compressing image data using eigenfaces
 
+**The compressed image data, from ((512x512x3)^2)x8 bits to 345 x 512x512x3x64 bit (or we could even use 8 bit values), gets a compression ratio of 345x8/(512x512x3) = 0.0035**
+
 Then it tries to save the model to the file we specified in the commandline arguments
 
 ![image-20201228110907948](report.assets/image-20201228110907948.png)
@@ -1376,16 +1380,206 @@ Let's checkout the result:
 
     ![image-20201228111524745](report.assets/image-20201228111524745.png)
 
-    This is a screenshot:
-
-    ![image-20201228111457095](report.assets/image-20201228111457095.png)
-
-    This is a screenshot of some of the gray blocks:
-
-    ![image-20201228111811414](report.assets/image-20201228111811414.png)
-
-    You can clearly see a face there, but they're not as outstanding as the first few eigenfaces
-
 4. We've got a model of size: `-rw-rw-r-- 1 xzdd xzdd 2.0G Dec 28 11:08  model.MyDataSet512x512x3.npz`
 
-5. 
+#### Testing
+
+Then, with the model and corresponding configuration file, we can use the eigenfaces we computed to compress our own image and get the reconstruction.
+
+Then by comparing the Euclidean Distance between the projected test image with that of the ones in the database (saved to model), we can get the most similar face from the database and display (or render to file)
+
+This is what we're going to do:
+
+1. Load the model, including all eigenvectors(eigenfaces), the mean face vector and all compressed image data
+
+2. Load the test image and go through the typical preprocessing procedure of alignment and histogram equilization
+
+3. Do a matrix multiplication between the eigenvectors and the loaded (processed) test image to retrieve the weight (compressed version of the test image)
+
+4. Do a Euclidean Distance comparison between all the images in the database (compressed using eigenface) to find the most similar image in the database (with smallest Euclidean Distance)
+
+5. Reconstruct the loaded test image using eigenvectors:
+
+    ```python
+    img = mean
+    img += np.mul(np.transpose(vectors), weights)
+    ```
+
+6. Reconstruct the most similar image in the database using the same method decribed above
+
+7. Render those image to a canvas and label them, providing with necessary name attributes for you to view them
+
+8. The rendered image are ordered like:
+
+    **Original::Reconstructed Original::Most Weighted Eigenface::Reconstructed Most Similar Database Image::Original Most Similar Database Images**
+
+**Testing with an unseen image (me):**
+
+![image-20201228152144051](report.assets/image-20201228152144051.png)
+
+The command we used were:
+
+```shell
+./test.py -i image_xz_0002.jpg -m model.MyDataSet512x512x3.npz -c builtin.json -o similarxz0002.png
+```
+
+You can see that we were using a server so no windows could be opened.
+
+But luckily the images are saved to the directory, so you can check them via either some service on your server or `scp` them back to your local directory
+
+![similarxz0002](report.assets/similarxz0002.png)
+
+We rendered the images at full size, so this should be a 512 by 5x512 image
+
+**You can see the reconstructed test image do resembles me in some way.**
+
+And it corrected my closed eyes (due to the fact that most of the images in the dataset are open-eyed) and tilted head (due to unaligned labelling)
+
+Moreover, even my clothes are being reconstructed
+
+On the right side is the most similar database image to the one being tested and the person on that is indeed me.
+
+==The most astonishing part is that: the reconstructed database image is almost identical to the orignal one, meaning the compression loses almost no data at all, even though the compression ratio is already 0.0035 (without the whole model)==
+
+During the testing, you can see the speed of recognizing the face is indeed pretty fast
+
+(Even though, due to the fact that we saved our eigenvectors using 64-bit float values with compression, the model file itself is pretty large and chunky to load from dist)
+
+Another test result:
+
+![similar0318](report.assets/similar0318.png)
+
+**Testing with an existing image:**
+
+![image-20201228152249447](report.assets/image-20201228152249447.png)
+
+From the existing images' result, we can also confirm that the compression is indeed enough for accuracy and reducing dimension can significantly reduce the time required to do the computation of other kinds (utilizing change of basis)
+
+![similarxz0006](report.assets/similarxz0006.png)
+
+
+
+### Additional Experiments
+
+#### Additional Training
+
+**Training with `isColor=false`, `targetPercentage=null` and `useBuiltn=false`:**
+
+The configuration we used:
+
+```json
+{
+    "width": 128,
+    "height": 128,
+    "left": [
+        48,
+        48
+    ],
+    "right": [
+        80,
+        48
+    ],
+    "isColor": false,
+    "nEigenFaces": 50,
+    "targetPercentage": null,
+    "useBuiltin": false,
+    "useHighgui": true
+}
+```
+
+Here we're using grayscale training and our own implementation of PCA
+
+We also constructed a small dataset to speed things up: `MySmallDataSet`
+
+Everyone has only three faces here.
+
+Here the `targetPercentage` is set to null, so we **won't have to compute all eigenvalues** to try reaching the target information retain rate
+
+![image-20201228161528630](report.assets/image-20201228161528630.png)
+
+Note that computing **32 eigenvalues/eigenvectors** took **8 seconds**
+
+Of course we'd get the basic results:
+
+Mean Eigenfaces:
+
+![eigenmean](report.assets/eigenmean-1609143435367.png)
+
+First 12 Eigenfaces:
+
+![eigenfaces](report.assets/eigenfaces-1609143443677.png)
+
+Then we performed another training using `targetPercentage=0.95` to retain 0.95 of all the information
+
+**Training with `targetPercentage=0.95`**
+
+```json
+{
+    "width": 128,
+    "height": 128,
+    "left": [
+        48,
+        48
+    ],
+    "right": [
+        80,
+        48
+    ],
+    "isColor": false,
+    "nEigenFaces": 50,
+    "targetPercentage": 0.95,
+    "useBuiltin": false,
+    "useHighgui": true
+}
+```
+
+Other procedures are purely identical
+
+![image-20201228162033769](report.assets/image-20201228162033769.png)
+
+And this mean to compute that 0.95 ratio without providing the function with the actual number of eigenvectors we want, we'd wait an additional **8 minutes** for this small dataset with only 45 images and a processed size of 128x128x1
+
+It's easy to notice that the results are the same
+
+![image-20201228162217544](report.assets/image-20201228162217544.png)
+
+![image-20201228162250784](report.assets/image-20201228162250784.png)
+
+**Training with target eigenface number = 50**
+
+![image-20201228162822254](report.assets/image-20201228162822254.png)
+
+**Training with target eigenface number = 100**
+
+![image-20201228163534635](report.assets/image-20201228163534635.png)
+
+You'll notice even getting more usable eigenvectors is faster than computing all of the eigenvalues
+
+#### Additional Testing
+
+Then we performed the test decribed in the colored image section
+
+32:
+
+![similarsmall0318](report.assets/similarsmall0318.png)
+
+![similarsmallxz0002](report.assets/similarsmallxz0002.png)
+
+![similarsmallxz0006](report.assets/similarsmallxz0006.png)
+
+50:
+
+![similarsmall0318](report.assets/similarsmall0318-1609144625994.png)
+
+![similarsmallxz0002](report.assets/similarsmallxz0002-1609144630699.png)
+
+![similarsmallxz0006](report.assets/similarsmallxz0006-1609144633982.png)
+
+100:
+
+![similarsmall0318](report.assets/similarsmall0318-1609144686749.png)
+
+![similarsmallxz0002](report.assets/similarsmallxz0002-1609144691818.png)
+
+![similarsmallxz0006](report.assets/similarsmallxz0006-1609144695490.png)
+

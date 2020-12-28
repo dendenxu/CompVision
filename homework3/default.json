@@ -10,8 +10,8 @@
         48
     ],
     "isColor": false,
-    "nEigenFaces": 20,
+    "nEigenFaces": 100,
     "targetPercentage": null,
     "useBuiltin": false,
-    "useHighgui": false
+    "useHighgui": true
 }
