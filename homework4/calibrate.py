@@ -1,31 +1,29 @@
 #! python
+# python calibrate.py -i calibration -c 12 -r 12 -o intrinsics.xml
+# python calibrate.py -i calibration -c 12 -r 12 -o intrinsics.xml -s
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import matplotlib as mpl
-import logging
-import coloredlogs
-import argparse
+from utils import *
 
-# python calibrate.py -i calibration -c 12 -r 12 -o intrinsics.xml
+import logging
+# Setting up logger for the project
+log = logging.getLogger(__name__)
 
 # Adding argument parser
-parser = argparse.ArgumentParser(description="""""", formatter_class=argparse.RawDescriptionHelpFormatter)
+parser = argparse.ArgumentParser(description="""Do a calibration using a bunch of checker board images in a folder provided by the user
+User can choose to view the calibrated images or not
+The camera instrinsics parameters and distortion coefficients are stored in a file whose name is specified by the user
+""", formatter_class=CustomFormatter)
 parser.add_argument("-i", "--input_path", default="./calibration", help="The folder containing all images to be used to calibrate the camera")
 parser.add_argument("-c", "--columns", type=int, default=12, help="The width of the checkerboard. (Points to be detected along a horizontal line)")
 parser.add_argument("-r", "--rows", type=int, default=12, help="The height of the checkerboard. (Points to be detected along a vertical line)")
 parser.add_argument("-o", "--output_file", default="intrinsics.xml", help="The output file to save the camera intrinsics and distortion coefficients")
-parser.add_argument("-s", "--should_check", action="store_true", help="Should the check all calibrated/rectified checkerboard image?")
+parser.add_argument("-s", "--should_check", action="store_true", help="Should the user check all calibrated/rectified checkerboard image?")
 
 args = parser.parse_args()
 
-# initailization for plotting and logging
-# Setting up font for matplotlib
-mpl.rc("font", family=["Josefin Sans", "Trebuchet MS", "Inconsolata"], weight="medium")
-# Setting up logger for the project
-log = logging.getLogger(__name__)
-coloredlogs.install(level='INFO')  # Change this to DEBUG to see more info.
 
 # parse and process the parsed arguments
 path = args.input_path
@@ -45,10 +43,14 @@ img_shp = ()  # size/shape of the image to be used for calibrattion
 objp = np.zeros((board_n, 3), "float32")  # all object/world points are the same set
 objp[:, :2] = np.mgrid[0:board_h, 0:board_w].T.reshape(-1, 2)
 imgs = []  # so we don't have to read all images in again
-
+files = []  # valid filenames
 # find all checker board corners and add corresponding 3D space locations
 for fpath in fpaths:
+    log.info(f"Begin processing {fpath}")
     img = cv2.imread(fpath)
+    if img is None:
+        log.warning(f"Cannot read image {fpath}, is this really a image?")
+        break
     img_shp = img.shape[:2][::-1]  # OpenCV wants (width, height)
     found, corners = cv2.findChessboardCorners(
         img,  # the BGR image to be used to find checker board corners on
@@ -59,22 +61,29 @@ for fpath in fpaths:
         # use adaptive threashold to BW image instead of a fixed one
         # CALIB_CB_NORMALIZE_IMAGE Normalize the image gamma with equalizeHist before applying fixed or adaptive thresholding.
     )
-    if found:
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        corners = cv2.cornerSubPix(
-            gray, # cornersSubPix only wants one-channel image
-            corners, # already found corners to be refined on
-            (11, 11), # winSize	Half of the side length of the search window. For example, if winSize=Size(5,5) , then a (5∗2+1)×(5∗2+1)=11×11 search window is used.
-            (-1, -1), # zeroZone Half of the size of the dead region in the middle of the search zone over which the summation in the formula below is not done. It is used sometimes to avoid possible singularities of the autocorrelation matrix. The value of (-1,-1) indicates that there is no such a size.
-            criteria
-        )
-        imgs.append(img)
-        img_pts.append(corners)
-        obj_pts.append(objp)
+    if not found:
+        log.warning(f"Cannot find checker board from image {fpath}, is there really a checker board? Do your width/height match?")
+        break
+
+    log.info(f"Found {corners.shape[0]} checkerboard corners")
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    corners = cv2.cornerSubPix(
+        gray,  # cornersSubPix only wants one-channel image
+        corners,  # already found corners to be refined on
+        (11, 11),  # winSize	Half of the side length of the search window. For example, if winSize=Size(5,5) , then a (5∗2+1)×(5∗2+1)=11×11 search window is used.
+        (-1, -1),  # zeroZone Half of the size of the dead region in the middle of the search zone over which the summation in the formula below is not done. It is used sometimes to avoid possible singularities of the autocorrelation matrix. The value of (-1,-1) indicates that there is no such a size.
+        criteria
+    )
+    log.info(f"Refined {corners.shape[0]} checkerboard corners")
+    imgs.append(img)
+    files.append(fpath)
+    img_pts.append(corners)
+    obj_pts.append(objp)
 
 # cv2.calibrateCamera only accepts float32 as numpy array
 obj_pts = np.array(obj_pts).astype("float32")
 
+log.info(f"Beginning calibration using images in: {path}, files: {files}")
 # do the calibration
 err, intr, dist, rota, tran = cv2.calibrateCamera(
     obj_pts,  # object points in 3D
@@ -87,6 +96,9 @@ err, intr, dist, rota, tran = cv2.calibrateCamera(
     # The principal point is not changed during the global optimization. It stays at the center
 )
 
+log.info(f"Got camera intrinsics:\n{intr} and distortion coefficients:\n{dist}")
+
+log.info(f"Opening {output} for output")
 # store camera intrinsics and distortion coefficients
 fs = cv2.FileStorage(output, cv2.FILE_STORAGE_WRITE)
 fs.write("image_width", img_shp[0])
@@ -94,6 +106,7 @@ fs.write("image_height", img_shp[1])
 fs.write("camera_matrix", intr)
 fs.write("distortion_coefficients", dist)
 fs.release()
+log.info(f"camera_matrix and distortion_coefficients stored to {output}")
 
 # if the user wants, let he/she examine the rectified images
 if show_imgs:
@@ -101,6 +114,8 @@ if show_imgs:
     for i in range(len(imgs)):
         img = imgs[i]
         corners = img_pts[i]
+        file = files[i]
+        log.info(f"Showing {file}")
         cv2.drawChessboardCorners(img, board_sz, corners, True)
         # dst = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
         dst = cv2.undistort(img, intr, dist)
