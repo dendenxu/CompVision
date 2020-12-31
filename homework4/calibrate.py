@@ -37,7 +37,7 @@ board_sz = (board_w, board_h)
 show_imgs = args.should_check
 output = args.output_file
 
-# initialization for things
+# initializating stuff
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)  # criteria for subPix corners finder
 img_pts = []  # image points in calibrate camera
 obj_pts = []  # world points in calibrate camera
