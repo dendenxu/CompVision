@@ -104,16 +104,15 @@ for fpath in fpaths:
 
         M = np.matmul(H, scale)
         invM = np.linalg.inv(M)
-        ones = np.ones((1, board_n), "float32")
+        ones = np.ones((1, board_n))
         log.info(f"Getting corners.T of shape {corners.T.shape} and ones of shape {ones.shape}")
         expC = np.concatenate([corners.T, ones], 0)
         log.info(f"Getting expanded corners of shape {expC.shape}")
         invC = np.matmul(invM, expC).T
-        log.info(f"Getting inverted corners of shape {invC.shape}")
         invC[:, 0] /= invC[:, 2]
         invC[:, 1] /= invC[:, 2]
         invC = invC[:, :2]
-        invC = invC.astype("float32")
+        invC = invC.astype("float32") # mark: strange error if you don't convert stuff to float32
         log.info(f"Getting inverted corners of shape {invC.shape}")
         # update obj points base on the user's specification of Z and S value
         objPts[0] = invC[0]
@@ -128,7 +127,7 @@ for fpath in fpaths:
             flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP,  # don't do matrix inverse before transform
             borderMode=cv2.BORDER_CONSTANT  # use constant value to fill the border
         )
-        if C:
+        if C: # whether user want to display the checker board points or not
             cv2.drawChessboardCorners(birdseye, board_sz, invC, True)
             # mark the image points to be used to generate birdseye view
             cv2.circle(birdseye, tuple(objPts[0].astype(int).tolist()), 9, (255, 0, 0), 3)
@@ -139,7 +138,7 @@ for fpath in fpaths:
         cv2.imshow("Rectified Img", img)
         cv2.imshow("Birdseye View", birdseye)
 
-        k = cv2.waitKey(0) & 0xff
+        k = cv2.waitKey() & 0xff
         log.info(f"Getting key: {chr(k)} or order {k}")
 
         # update view height
