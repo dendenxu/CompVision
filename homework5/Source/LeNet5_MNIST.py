@@ -2,7 +2,9 @@
 import os
 import cv2
 import numpy as np
+from scipy import interpolate
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint, Callback, LearningRateScheduler, ReduceLROnPlateau
@@ -15,6 +17,12 @@ import tensorflow_datasets as tfds
 
 import coloredlogs
 import logging
+
+# initailization for plotting and logging
+# Setting up font for matplotlib
+mpl.rc("font", family=["Josefin Sans", "Consolas", "Ubuntu", "Fira Code", "Inconsolata"], weight="medium", style="italic")
+plt.style.use('dark_background')
+
 coloredlogs.install("INFO")
 log = logging.getLogger(__name__)
 
@@ -114,14 +122,19 @@ def main(use_dense=False, index=0):
     batch_size = 256
     lr = 1e-3
     n_epoch = 20
+
+    result_dir = "results"
+    modelname = f"{result_dir}/models/{'dense' if use_dense else 'lenet5'}_{index}.pth"
+    figname = f"{result_dir}/logs/{'dense' if use_dense else 'lenet5'}_{index}.svg"
+    prediction_figname = f"prediction_{'dense' if use_dense else 'lenet5'}_{index}.svg"
+
     log.info("Loading MNIST dataset")
     ds_train, ds_test, ds_val, ds_info = load_mnist(batch_size)
 
     log.info("Constructing LeNet-5")
-    if use_dense:
-        model = dense(input_shape, n_classes, lr)
-    else:
-        model = lenet5(input_shape, n_classes, lr)
+
+    construct_model = dense if use_dense else lenet5
+    model = construct_model(input_shape, n_classes, lr)
     model.summary()
 
     log.info("Training...")
@@ -131,35 +144,72 @@ def main(use_dense=False, index=0):
         validation_data=ds_val,
     )
 
-    plot_training_history(history, use_dense, index)
+    log.info("Plotting training history...")
+    try:
+        plot_training_history(history, figname)
+    except Exception as e:
+        log.error("Cannot plot the training history (are you on GUI?), however the figure is still saved to results/logs/{}_{}")
 
     log.info("Evaluating...")
     model.evaluate(ds_test)
 
     log.info("Saving model...")
 
-    if use_dense:
-        save_model(model, f"results/models/dense_{index}.pth")
-    else:
-        save_model(model, f"results/models/lenet5_{index}.pth")
+    save_model(model, modelname)
 
-    predict_mnist(ds_test)
+    log.info("Predicting on random images...")
+    predict_mnist(model, ds_test, prediction_figname)
 
-    return model, history
+    return model, history, ds_train, ds_test, ds_val, ds_info
 
 
-def predict_mnist(ds_test):
-    pass
+def predict_mnist(model, ds_test, figname='prediction.svg'):
+    ds_test = ds_test.unbatch()
+    plt.figure(figsize=(10, 10))
+    plt.suptitle("Prediction & Ground Truth", fontweight="bold")
+    for i, (img, label) in enumerate(ds_test.take(9)):
+        plt.subplot(33*10 + i + 1)
+        img = np.expand_dims(img, 0)
+        result = model.predict(img)
+        result = np.argmax(result)
+        log.info(f"img shape: {img.shape}, label: {label}. predicted: {result}")
+        plt.imshow(img.squeeze())
+        plt.title(f"Prediction Index: {i}, Prediction: {result}, Truth: {label}")
+
+    plt.tight_layout()
+    plt.savefig(figname)
+    plt.show()
 
 
-def plot_training_history(res, use_dense, index):
-    for key in res.history.keys():
-        plt.plot(res.history[key], label=key)
-    plt.legend(loc='upper right')
-    plt.savefig(f"results/logs/{'dense' if use_dense else 'lenet5'}{index}.eps")
+def plot_training_history(res, figname, limit_acc_tick=False):
+    def plot_key(key):
+        length = len(res.history[key])
+        inter = (interpolate.CubicSpline(np.linspace(0, length, length, endpoint=False), res.history[key]))(np.linspace(0, length, length*10, endpoint=False))
+        plt.plot(inter, label=key, linewidth=2.5, alpha=0.7)
+
+    plt.figure(figsize=(20, 10))
+    plt.suptitle("Training History: loss & val_loss & acc & val_acc", fontweight="bold")
+    plt.subplot(121)
+    key = 'loss'
+    plot_key(key)
+    key = 'val_loss'
+    plot_key(key)
+    plt.legend(loc='right')
+
+    plt.subplot(122)
+    key = 'sparse_categorical_accuracy'
+    plot_key(key)
+    key = 'val_sparse_categorical_accuracy'
+    plot_key(key)
+    plt.legend(loc='right')
+    if limit_acc_tick:
+        plt.yticks(np.linspace(0, 1, 11, endpoint=True))
+
+    plt.savefig(figname)
     plt.show()
 
 
 if __name__ == "__main__":
     growth()
     main()
+    main(True)
