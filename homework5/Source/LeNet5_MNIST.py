@@ -164,6 +164,8 @@ def main(use_dense=False, index=0):
 def predict_mnist(model, ds_test, figname='prediction.svg'):
     try:
         ds_test = ds_test.unbatch()
+    except Exception as e:
+        log.error(e)
     plt.figure(figsize=(10, 10))
     plt.suptitle("Prediction & Ground Truth", fontweight="bold")
     for i, (img, label) in enumerate(ds_test.take(9)):
