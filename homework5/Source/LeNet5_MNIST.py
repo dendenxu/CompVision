@@ -108,7 +108,7 @@ def load_mnist(batch_size=256):
     return ds_train, ds_test, ds_val, ds_info
 
 
-def main():
+def main(use_dense=False, index=0):
     input_shape = (28, 28, 1)
     n_classes = 10
     batch_size = 256
@@ -118,8 +118,10 @@ def main():
     ds_train, ds_test, ds_val, ds_info = load_mnist(batch_size)
 
     log.info("Constructing LeNet-5")
-    model = lenet5(input_shape, n_classes, lr)
-    # model = dense(input_shape, n_classes, lr)
+    if use_dense:
+        model = dense(input_shape, n_classes, lr)
+    else:
+        model = lenet5(input_shape, n_classes, lr)
     model.summary()
 
     log.info("Training...")
@@ -129,12 +131,33 @@ def main():
         validation_data=ds_val,
     )
 
+    plot_training_history(history, use_dense, index)
+
     log.info("Evaluating...")
     model.evaluate(ds_test)
 
     log.info("Saving model...")
-    save_model(model, "results/models/lenet5.pth")
-    # save_model(model, "results/models/dense.pth")
+
+    if use_dense:
+        save_model(model, f"results/models/dense_{index}.pth")
+    else:
+        save_model(model, f"results/models/lenet5_{index}.pth")
+
+    predict_mnist(ds_test)
+
+    return model, history
+
+
+def predict_mnist(ds_test):
+    pass
+
+
+def plot_training_history(res, use_dense, index):
+    for key in res.history.keys():
+        plt.plot(res.history[key], label=key)
+    plt.legend(loc='upper right')
+    plt.savefig(f"results/logs/{'dense' if use_dense else 'lenet5'}{index}.eps")
+    plt.show()
 
 
 if __name__ == "__main__":
