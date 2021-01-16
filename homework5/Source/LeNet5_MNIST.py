@@ -1,6 +1,4 @@
 #! python
-import os
-import cv2
 import numpy as np
 from scipy import interpolate
 import matplotlib.pyplot as plt
@@ -34,11 +32,11 @@ def growth():
             # Currently, memory growth needs to be the same across GPUs
             for gpu in gpus:
                 tf.config.experimental.set_memory_growth(gpu, True)
-                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            log.info(f"{len(gpus)} Physical GPUs, {len(logical_gpus)} Logical GPUs")
         except RuntimeError as e:
             # Memory growth must be set before GPUs have been initialized
-            print(e)
+            log.error(e)
 
 
 def lenet5(input_shape, n_classes, lr):
@@ -164,7 +162,8 @@ def main(use_dense=False, index=0):
 
 
 def predict_mnist(model, ds_test, figname='prediction.svg'):
-    ds_test = ds_test.unbatch()
+    try:
+        ds_test = ds_test.unbatch()
     plt.figure(figsize=(10, 10))
     plt.suptitle("Prediction & Ground Truth", fontweight="bold")
     for i, (img, label) in enumerate(ds_test.take(9)):
